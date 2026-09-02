@@ -30,6 +30,8 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/manifests/*
+!data/manifests/.gitkeep
 data/demo/*
 !data/demo/.gitkeep
 model_artifacts/*
