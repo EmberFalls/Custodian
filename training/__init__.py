@@ -1,1 +1,1 @@
-"""Offline training utilities that reuse sentinelx.features."""
+"""Offline training utilities that reuse custodian.features."""

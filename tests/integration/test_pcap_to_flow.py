@@ -4,9 +4,9 @@ import socket
 
 import dpkt
 
-from sentinelx.flow.manager import FlowManager
-from sentinelx.ingest.pcap import PcapAdapter
-from sentinelx.parsing.packet import PacketParser
+from custodian.flow.manager import FlowManager
+from custodian.ingest.pcap import PcapAdapter
+from custodian.parsing.packet import PacketParser
 
 
 def _ethernet_tcp(src: str, dst: str, sport: int, dport: int, flags: int) -> bytes:
@@ -62,3 +62,30 @@ def test_pcap_adapter_reports_ethernet_link_type(tmp_path) -> None:
         writer.close()
 
     assert PcapAdapter(capture).datalink() == dpkt.pcap.DLT_EN10MB
+
+
+def test_raw_ip_capture_uses_same_passive_parser(tmp_path) -> None:
+    capture = tmp_path / "raw-ip.pcap"
+    raw_ip = bytes(
+        dpkt.ethernet.Ethernet(
+            _ethernet_tcp("10.0.0.1", "10.0.0.2", 50000, 443, dpkt.tcp.TH_SYN)
+        ).data
+    )
+    with capture.open("wb") as stream:
+        writer = dpkt.pcap.Writer(stream, linktype=dpkt.pcap.DLT_RAW)
+        writer.writepkt(raw_ip, ts=1.0)
+        writer.close()
+
+    frame = next(PcapAdapter(capture).frames())
+    packet = PacketParser().parse(frame.timestamp, frame.data, frame.datalink)
+
+    assert frame.datalink == dpkt.pcap.DLT_RAW
+    assert packet is not None
+    assert str(packet.src_ip) == "10.0.0.1"
+
+
+def test_parser_reports_truncated_and_unsupported_without_crashing() -> None:
+    parser = PacketParser()
+
+    assert parser.parse_with_status(1.0, b"")[1] == "truncated"
+    assert parser.parse_with_status(1.0, b"not-an-interface", 999)[1] == "unsupported"

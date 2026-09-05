@@ -53,7 +53,11 @@ def complete_class_grouped_splits(frame: pd.DataFrame, seed: int = 42):
     expected = set(frame["label"])
     for candidate in range(seed, seed + 100):
         parts = grouped_splits(frame, candidate)
-        if all(set(part["label"]) == expected
-               for part in (parts.train, parts.validation, parts.calibration, parts.test)):
+        if all(
+            set(part["label"]) == expected
+            for part in (parts.train, parts.validation, parts.calibration, parts.test)
+        ):
             return parts, candidate
-    raise ValueError("No four-role grouped split contains every class; use richer provenance, not row-random splitting.")
+    raise ValueError(
+        "No four-role grouped split contains every class; use richer provenance, not row-random splitting."
+    )

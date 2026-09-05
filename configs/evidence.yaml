@@ -1,3 +1,4 @@
+policy_version: evidence.v1
 unknown_min_confidence: 0.50
 requirements:
   DDOS:
@@ -28,5 +29,8 @@ requirements:
     required_capabilities: [has_dns_query_name]
     required_evidence: [domain_length, character_entropy, query_frequency]
   SUSPICIOUS_ENCRYPTED:
+    any_capabilities: [has_tls_metadata, has_quic_metadata]
+    required_evidence: [packet_count, packet_size_mean]
+  MALICIOUS_ENCRYPTED_SESSION:
     any_capabilities: [has_tls_metadata, has_quic_metadata]
     required_evidence: [packet_count, packet_size_mean]

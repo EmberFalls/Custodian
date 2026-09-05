@@ -40,6 +40,8 @@ reports/metrics/*
 !reports/metrics/.gitkeep
 reports/benchmarks/*
 !reports/benchmarks/.gitkeep
+runtime/*
+!runtime/.gitkeep
 
 # Frontend dependencies and builds
 frontend/node_modules/

@@ -3,5 +3,11 @@
 from training.train_common import train_family
 
 
-def train(input_path, output_dir):
-    return train_family(input_path, output_dir, family="dns", schema_version="dns.v1")
+def train(input_path, output_dir, *, isolation_acknowledged=False):
+    return train_family(
+        input_path,
+        output_dir,
+        family="dns",
+        schema_version="dns.v1",
+        isolation_acknowledged=isolation_acknowledged,
+    )

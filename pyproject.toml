@@ -25,6 +25,9 @@ dependencies = [
     "xgboost>=3,<4",
 ]
 
+[project.scripts]
+custodian = "custodian.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<10",

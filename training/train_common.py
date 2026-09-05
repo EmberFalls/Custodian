@@ -35,8 +35,19 @@ def _matrix(frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     return matrix
 
 
-def train_family(input_path, output_dir, *, family: str, schema_version: str):
+def train_family(
+    input_path,
+    output_dir,
+    *,
+    family: str,
+    schema_version: str,
+    isolation_acknowledged: bool = False,
+):
     """Fit, calibrate, evaluate, and export a real Random Forest model family."""
+
+    from training.safety import require_isolated_training_approval
+
+    require_isolated_training_approval(acknowledged=isolation_acknowledged)
 
     table = pd.read_parquet(input_path)
     if table.empty:

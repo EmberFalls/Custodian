@@ -7,14 +7,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sentinelx.core.enums import TransportProtocol
-from sentinelx.core.schemas import PacketObservation
-from sentinelx.features.behaviour import BehaviourFeatureExtractor
-from sentinelx.features.behaviour_flow import FLOW_MODEL_FEATURES
-from sentinelx.flow.manager import FlowManager
-from sentinelx.models.calibrator import MulticlassSigmoidCalibrator
-from sentinelx.observation.capabilities import build_capability_profile
-from sentinelx.state.manager import TemporalStateManager
+from custodian.core.enums import TransportProtocol
+from custodian.core.schemas import PacketObservation
+from custodian.features.behaviour import BehaviourFeatureExtractor
+from custodian.features.behaviour_flow import FLOW_MODEL_FEATURES
+from custodian.flow.manager import FlowManager
+from custodian.models.calibrator import MulticlassSigmoidCalibrator
+from custodian.observation.capabilities import build_capability_profile
+from custodian.state.manager import TemporalStateManager
 from training.cicids2017 import REQUIRED_FILES, to_shared_features, validate_sources
 
 
@@ -26,22 +26,35 @@ def test_csv_and_runtime_share_exact_feature_units_and_direction(observed_at):
             timestamp=observed_at + timedelta(seconds=i),
             src_ip="10.0.0.1" if reverse else "10.0.0.9",
             dst_ip="10.0.0.9" if reverse else "10.0.0.1",
-            src_port=443 if reverse else 50000, dst_port=50000 if reverse else 443,
-            protocol=TransportProtocol.TCP, packet_length=size + 54, payload_length=size,
+            src_port=443 if reverse else 50000,
+            dst_port=50000 if reverse else 443,
+            protocol=TransportProtocol.TCP,
+            packet_length=size + 54,
+            payload_length=size,
             tcp_flags=frozenset({"ACK"}),
         )
         update = manager.process(packet)
         state.observe(packet, update)
     temporal = state.snapshot("10.0.0.9", "10.0.0.1", packet.timestamp, 60)
     vector = BehaviourFeatureExtractor().extract(
-        update.snapshot, temporal, build_capability_profile(packet, update.snapshot),
+        update.snapshot,
+        temporal,
+        build_capability_profile(packet, update.snapshot),
     )
-    csv = pd.DataFrame([{
-        "Flow Duration": 3_000_000, "Total Fwd Packets": 2, "Total Backward Packets": 2,
-        "Total Length of Fwd Packets": 30, "Total Length of Bwd Packets": 70,
-        "Fwd Packet Length Std": sqrt(50), "Bwd Packet Length Std": sqrt(50),
-        "Flow IAT Std": 0,
-    }])
+    csv = pd.DataFrame(
+        [
+            {
+                "Flow Duration": 3_000_000,
+                "Total Fwd Packets": 2,
+                "Total Backward Packets": 2,
+                "Total Length of Fwd Packets": 30,
+                "Total Length of Bwd Packets": 70,
+                "Fwd Packet Length Std": sqrt(50),
+                "Bwd Packet Length Std": sqrt(50),
+                "Flow IAT Std": 0,
+            }
+        ]
+    )
     prepared = to_shared_features(csv).iloc[0]
     for name in FLOW_MODEL_FEATURES:
         assert vector.values[name] == pytest.approx(prepared["feature__" + name])
@@ -58,8 +71,9 @@ def test_missing_sources_names_are_explicit(tmp_path):
 
 
 def test_sigmoid_outputs_finite_normalized_probabilities():
-    raw = np.array([[0.7, 0.1, 0.1, 0.1], [0.1, 0.7, 0.1, 0.1],
-                    [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.1, 0.7]] * 4)
+    raw = np.array(
+        [[0.7, 0.1, 0.1, 0.1], [0.1, 0.7, 0.1, 0.1], [0.1, 0.1, 0.7, 0.1], [0.1, 0.1, 0.1, 0.7]] * 4
+    )
     calibration = MulticlassSigmoidCalibrator().fit(raw, [0, 1, 2, 3] * 4)
     result = calibration.transform(raw)
     assert np.isfinite(result).all()

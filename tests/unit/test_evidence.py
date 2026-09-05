@@ -1,15 +1,15 @@
 """Tests for capability-aware Evidence Gate decisions and alert construction."""
 
-from sentinelx.alerts.builder import build_alert
-from sentinelx.core.enums import AlertDecision, EvidenceQuality, ThreatClass, TransportProtocol
-from sentinelx.core.schemas import (
+from custodian.alerts.builder import build_alert
+from custodian.core.enums import AlertDecision, EvidenceQuality, ThreatClass, TransportProtocol
+from custodian.core.schemas import (
     CapabilityProfile,
     DetectorVerdict,
     Endpoint,
     FlowRecord,
     NumericStats,
 )
-from sentinelx.evidence.gate import EvidenceGate
+from custodian.evidence.gate import EvidenceGate
 
 
 def _flow(observed_at) -> FlowRecord:
@@ -88,23 +88,35 @@ def test_accepted_gate_builds_valid_alert(observed_at) -> None:
 
 def test_high_confidence_cannot_override_insufficient_temporal_history():
     verdict = DetectorVerdict(
-        detector_id="test", threat_class=ThreatClass.BOT_OR_C2_LIKE,
-        raw_score=0.99, calibrated_confidence=0.98,
+        detector_id="test",
+        threat_class=ThreatClass.BOT_OR_C2_LIKE,
+        raw_score=0.99,
+        calibrated_confidence=0.98,
         evidence={"connection_count": 1, "history_complete": True},
-        model_version="TEST_ONLY", feature_schema_version="behaviour.v1", inference_latency_ms=0,
+        model_version="TEST_ONLY",
+        feature_schema_version="behaviour.v1",
+        inference_latency_ms=0,
     )
-    gate = EvidenceGate({"BOT_OR_C2_LIKE": {
-        "minimum_evidence": {"connection_count": 3},
-        "required_true": ["history_complete"],
-    }}).evaluate(verdict, CapabilityProfile(), 0.8)
+    gate = EvidenceGate(
+        {
+            "BOT_OR_C2_LIKE": {
+                "minimum_evidence": {"connection_count": 3},
+                "required_true": ["history_complete"],
+            }
+        }
+    ).evaluate(verdict, CapabilityProfile(), 0.8)
     assert gate.decision is AlertDecision.INSUFFICIENT_EVIDENCE
     assert "connection_count>=3" in gate.missing_evidence
 
 
 def test_benign_is_not_an_alert():
     verdict = DetectorVerdict(
-        detector_id="test", threat_class=ThreatClass.BENIGN, raw_score=0.99,
-        calibrated_confidence=0.98, model_version="TEST_ONLY",
-        feature_schema_version="behaviour.v1", inference_latency_ms=0,
+        detector_id="test",
+        threat_class=ThreatClass.BENIGN,
+        raw_score=0.99,
+        calibrated_confidence=0.98,
+        model_version="TEST_ONLY",
+        feature_schema_version="behaviour.v1",
+        inference_latency_ms=0,
     )
     assert EvidenceGate({}).evaluate(verdict, CapabilityProfile(), 0.5).decision is None

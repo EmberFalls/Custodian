@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from sentinelx.core.schemas import FeatureVector
+from custodian.core.schemas import FeatureVector
 
 
 def feature_rows(

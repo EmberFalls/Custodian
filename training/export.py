@@ -35,7 +35,7 @@ def export_model_package(
         "manifest.json": {
             **manifest,
             "exported_at": datetime.now(UTC).isoformat(),
-            "artifact_format": "sentinelx.model_package.v1",
+            "artifact_format": "custodian.model_package.v1",
         },
     }
     for name, value in files.items():

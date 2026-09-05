@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from sentinelx.core.schemas import Endpoint
+from custodian.core.schemas import Endpoint
 
 
 @pytest.fixture

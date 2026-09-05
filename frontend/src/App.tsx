@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AlertInspector } from "./components/AlertInspector";
 import { ReplayControl } from "./components/ReplayControl";
-import { InspectionPipeline, KeyValue, MetricCard, StatusBadge, Timeline } from "./components/Visuals";
+import { InspectionPipeline, KeyValue, MetricCard, Sparkline, StatusBadge, Timeline } from "./components/Visuals";
 import { useRuntimeTelemetry } from "./hooks/useRuntimeTelemetry";
 import { alertDecisionCounts, formatBytes, formatDecimal, formatEndpoint, formatNumber, formatTime } from "./runtime";
-import type { AlertRecord, DetectorStatus } from "./types";
+import type { AlertRecord, DetectorStatus, HostTimelinePoint } from "./types";
 
 type Page = "monitor" | "alerts" | "traffic" | "detectors" | "performance";
 type TimelineMetric = "mbps" | "packets" | "flows";
@@ -21,11 +21,12 @@ const navigation: Array<{ id: Page; label: string; number: string }> = [
 
 const coverage = [
   ["DDoS", "behaviour", "Rate + target concentration"],
-  ["Bot / C2-like", "behaviour", "CICIDS Bot mapping + runtime recurrence"],
+  ["C2", "behaviour", "Recurrence + periodicity"],
   ["Recon", "behaviour", "Destination + port diversity"],
+  ["Exfiltration", "behaviour", "Directional volume + comparison window"],
   ["DGA", "dns", "DNS lexical features"],
   ["DNS tunnel", "dns", "Lexical + query frequency"],
-  ["Suspicious encrypted", "tls_quic", "Passive metadata"],
+  ["Malicious encrypted session", "tls_quic", "Observable handshake and flow metadata"],
 ] as const;
 
 export function App() {
@@ -47,6 +48,11 @@ export function App() {
   }, []);
 
   useEffect(() => { setSelectedAlert(null); }, [runtime.status?.run_id]);
+  useEffect(() => {
+    setSelectedAlert((current) => current
+      ? runtime.alerts.find((alert) => alert.alert_id === current.alert_id) ?? current
+      : null);
+  }, [runtime.alerts]);
 
   const activeDetectors = runtime.detectors.filter((detector) => detector.enabled).length;
   const monitorState = runtime.connected && runtime.status?.passive_monitor ? "ACTIVE" : "OFFLINE";
@@ -61,15 +67,17 @@ export function App() {
         <StatusItem label="SOURCE" value={runtime.status?.source_type?.replaceAll("_", " ") ?? "CONNECTING"} tone="neutral" />
         <StatusItem label="MODE" value={runtime.status?.mode?.toUpperCase() ?? "—"} tone="neutral" />
         <StatusItem label="PROGRESS" value={runtime.status?.progress == null ? "—" : `${(runtime.status.progress * 100).toFixed(0)}%`} tone="neutral" />
+        <StatusItem label="READINESS" value={runtime.readiness?.status.toUpperCase() ?? "CONNECTING"} tone={runtime.readiness?.status === "ready" ? "good" : "neutral"} />
       </div>
       <div className="connection-state"><StatusBadge label={runtime.connected ? replayState : "TELEMETRY LOST"} tone={runtime.connected ? replayState === "RUNNING" ? "good" : replayState === "PAUSED" ? "warning" : "neutral" : "danger"} /><button className="presentation-toggle" onClick={() => setPresentationMode((current) => !current)}>Presentation {presentationMode ? "on" : "off"}</button></div>
     </header>
     <nav className="primary-nav" aria-label="Primary navigation">{navigation.map((item) => <button key={item.id} className={page === item.id ? "is-active" : ""} onClick={() => setPage(item.id)}><span>{item.number}</span>{item.label}</button>)}</nav>
     {!runtime.connected ? <div className="connection-banner"><strong>Telemetry connection lost.</strong> {runtime.error ?? "Attempting to reconnect to the local runtime."}</div> : null}
+    {runtime.connected && runtime.readiness?.status === "degraded" ? <div className="readiness-banner"><strong>Runtime degraded.</strong> Replay and parsing remain available; one or more approved detector models are unavailable.</div> : null}
     <main className="dashboard">{page === "monitor" ? <LiveMonitor runtime={runtime} latest={latest} decisions={decisions} timelineMetric={timelineMetric} onTimelineMetric={setTimelineMetric} selectedAlert={selectedAlert} onSelectAlert={setSelectedAlert} liveDetail={liveDetail} onLiveDetail={setLiveDetail} /> : null}
-      {page === "alerts" ? <AlertsPage alerts={runtime.alerts} selectedAlert={selectedAlert} onSelectAlert={setSelectedAlert} /> : null}
+      {page === "alerts" ? <AlertsPage alerts={runtime.alerts} selectedAlert={selectedAlert} onSelectAlert={setSelectedAlert} onChanged={runtime.refresh} /> : null}
       {page === "traffic" ? <TrafficPage runtime={runtime} latest={latest} timelineMetric={timelineMetric} onTimelineMetric={setTimelineMetric} /> : null}
-      {page === "detectors" ? <DetectorsPage detectors={runtime.detectors} activeDetectors={activeDetectors} /> : null}
+      {page === "detectors" ? <DetectorsPage runtime={runtime} activeDetectors={activeDetectors} /> : null}
       {page === "performance" ? <PerformancePage runtime={runtime} latest={latest} /> : null}
     </main>
   </div>;
@@ -89,9 +97,9 @@ function LiveMonitor({ runtime, latest, decisions, timelineMetric, onTimelineMet
       <InspectionPipeline replayActive={Boolean(runtime.status?.replay_running && !runtime.status?.replay_paused)} detectors={runtime.detectors} metrics={runtime.metrics} onOpenDetails={onLiveDetail} />
     </section>
     <section className="monitor-bottom"><AlertTable alerts={runtime.alerts} selected={selectedAlert} onSelect={onSelectAlert} compact /></section>
-    <ReplayControl status={runtime.status} onComplete={runtime.refresh} />
+    <ReplayControl status={runtime.status} captures={runtime.captures} onComplete={runtime.refresh} />
     {liveDetail ? <aside className="live-detail-drawer"><button className="icon-button" onClick={() => onLiveDetail(null)} aria-label="Close details">×</button>{liveDetail === "detectors" ? <DetectorCards detectors={runtime.detectors} activeDetectors={runtime.detectors.filter((detector) => detector.enabled).length} /> : <EvidenceGate decisions={decisions} alerts={runtime.alerts} />}</aside> : null}
-    {selectedAlert ? <div className="live-alert-drawer"><AlertInspector alert={selectedAlert} onClose={() => onSelectAlert(null)} /></div> : null}
+    {selectedAlert ? <div className="live-alert-drawer"><AlertInspector alert={selectedAlert} onClose={() => onSelectAlert(null)} onChanged={runtime.refresh} /></div> : null}
   </div>;
 }
 
@@ -101,8 +109,8 @@ function DetectorCards({ detectors, activeDetectors }: { detectors: DetectorStat
     <div className="panel__heading"><div><div className="eyebrow">MODEL RUNTIME</div><h2>Detector families</h2></div><span className="muted">{activeDetectors} / 3 loaded</span></div>
     <div className="detector-cards">{detectors.map((detector) => <article className="detector-card" key={detector.id}>
       <div><span className="eyebrow">{labels[detector.id]} MODEL</span><StatusBadge label={detector.status} tone={detector.enabled ? "good" : "neutral"} /></div>
-      <strong>{detector.model_version ?? (detector.status === "PLANNED" ? "Deferred by prototype scope" : "No complete artifact")}</strong>
-      <p>{detector.enabled ? `${detector.schema_version} · ${detector.classes.join(" · ")}` : detector.reason ?? "No complete model artifact is available."}</p>
+      <strong>{detector.model_version ?? "No approved artifact"}</strong>
+      <p>{detector.enabled ? `${detector.schema_version} · ${detector.classes.join(" · ")}` : detector.reason ?? "No complete model artifact is available."}</p><p>Artifact trust: {detector.artifact_trusted ? "APPROVED" : "BLOCKED"}<br />Required evidence: {detector.required_evidence.join(", ") || "TLS or QUIC metadata"}</p>
     </article>)}</div>
   </section>;
 }
@@ -114,19 +122,46 @@ function EvidenceGate({ decisions, alerts }: { decisions: Record<string, number>
 
 function AlertTable({ alerts, selected, onSelect, compact = false }: { alerts: AlertRecord[]; selected: AlertRecord | null; onSelect: (alert: AlertRecord) => void; compact?: boolean }) {
   const visibleAlerts = alerts.slice(compact ? -6 : 0);
-  return <section className="panel alert-feed"><div className="panel__heading"><div><div className="eyebrow">STANDARDIZED ALERTRECORDS</div><h2>{compact ? "Recent alerts" : "Live alert feed"}</h2></div><span className="muted">{formatNumber(alerts.length)} records</span></div>{alerts.length === 0 ? <div className="empty-state"><strong>NO EVIDENCE-BACKED ALERTS</strong><p>Traffic may be observed, but no real detector decision has been emitted.</p></div> : <div className="table-scroll"><table><thead>{compact ? <tr><th>Time</th><th>Threat</th><th>Severity</th><th>Source → destination</th><th>Confidence</th><th>Evidence</th></tr> : <tr><th>Time</th><th>Threat</th><th>Severity</th><th>Source</th><th>Destination</th><th>Confidence</th><th>Evidence</th><th>Decision</th></tr>}</thead><tbody>{visibleAlerts.map((alert) => <tr key={alert.alert_id} className={selected?.alert_id === alert.alert_id ? "is-selected" : ""} onClick={() => onSelect(alert)} tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onSelect(alert); }}><td>{formatTime(alert.emitted_at ?? alert.timestamp)}</td><td>{alert.threat_class}</td><td><StatusBadge label={alert.severity} tone={alert.severity === "CRITICAL" ? "danger" : alert.severity === "HIGH" ? "warning" : "neutral"} /></td>{compact ? <td className="mono">{formatEndpoint(alert.source)} → {formatEndpoint(alert.destination)}</td> : <><td className="mono">{formatEndpoint(alert.source)}</td><td className="mono">{formatEndpoint(alert.destination)}</td></>}<td>{formatDecimal(alert.calibrated_confidence * 100)}%</td><td>{alert.evidence_quality}</td>{!compact ? <td><StatusBadge label={alert.decision.replaceAll("_", " ")} tone={alert.decision === "ACCEPT" ? "good" : alert.decision === "UNKNOWN_SUSPICIOUS" ? "unknown" : "warning"} /></td> : null}</tr>)}</tbody></table></div>}</section>;
+  return <section className="panel alert-feed"><div className="panel__heading"><div><div className="eyebrow">STANDARDIZED ALERTRECORDS</div><h2>{compact ? "Recent alerts" : "Live alert feed"}</h2></div><span className="muted">{formatNumber(alerts.length)} records</span></div>{alerts.length === 0 ? <div className="empty-state"><strong>NO EVIDENCE-BACKED ALERTS</strong><p>Traffic may be observed, but no real detector decision has been emitted.</p></div> : <div className="table-scroll"><table><thead>{compact ? <tr><th>Time</th><th>Threat</th><th>Severity</th><th>Source → destination</th><th>Confidence</th><th>Evidence</th></tr> : <tr><th>Time</th><th>Threat</th><th>Severity</th><th>Source</th><th>Destination</th><th>Confidence</th><th>Evidence</th><th>Decision</th><th>Status</th></tr>}</thead><tbody>{visibleAlerts.map((alert) => <tr key={alert.alert_id} data-threat={alert.threat_class} data-decision={alert.decision} className={selected?.alert_id === alert.alert_id ? "is-selected" : ""} onClick={() => onSelect(alert)} tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onSelect(alert); }}><td>{formatTime(alert.emitted_at ?? alert.timestamp)}</td><td>{alert.threat_class}</td><td><StatusBadge label={alert.severity} tone={alert.severity === "CRITICAL" ? "danger" : alert.severity === "HIGH" ? "warning" : "neutral"} /></td>{compact ? <td className="mono">{formatEndpoint(alert.source)} → {formatEndpoint(alert.destination)}</td> : <><td className="mono">{formatEndpoint(alert.source)}</td><td className="mono">{formatEndpoint(alert.destination)}</td></>}<td>{formatDecimal(alert.calibrated_confidence * 100)}%</td><td>{alert.evidence_quality}</td>{!compact ? <><td><StatusBadge label={alert.decision.replaceAll("_", " ")} tone={alert.decision === "ACCEPT" ? "good" : alert.decision === "UNKNOWN_SUSPICIOUS" ? "unknown" : "warning"} /></td><td>{alert.status.toUpperCase()}</td></> : null}</tr>)}</tbody></table></div>}</section>;
 }
 
-function AlertsPage({ alerts, selectedAlert, onSelectAlert }: { alerts: AlertRecord[]; selectedAlert: AlertRecord | null; onSelectAlert: (alert: AlertRecord | null) => void }) {
-  return <div className="page-with-inspector"><AlertTable alerts={alerts} selected={selectedAlert} onSelect={onSelectAlert} /><AlertInspector alert={selectedAlert} onClose={() => onSelectAlert(null)} /></div>;
+function AlertsPage({ alerts, selectedAlert, onSelectAlert, onChanged }: { alerts: AlertRecord[]; selectedAlert: AlertRecord | null; onSelectAlert: (alert: AlertRecord | null) => void; onChanged: () => Promise<void> }) {
+  const [decision, setDecision] = useState("ALL");
+  const [status, setStatus] = useState("ALL");
+  const [sort, setSort] = useState("newest");
+  const filtered = useMemo(() => [...alerts]
+    .filter((alert) => decision === "ALL" || alert.decision === decision)
+    .filter((alert) => status === "ALL" || alert.status === status)
+    .sort((first, second) => sort === "confidence"
+      ? second.calibrated_confidence - first.calibrated_confidence
+      : sort === "oldest"
+        ? new Date(first.timestamp).getTime() - new Date(second.timestamp).getTime()
+        : new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime()), [alerts, decision, sort, status]);
+  return <div className="page-grid"><section className="alert-filters" aria-label="Alert filters"><label>Decision<select value={decision} onChange={(event) => setDecision(event.target.value)}><option>ALL</option><option>ACCEPT</option><option>UNKNOWN_SUSPICIOUS</option><option>INSUFFICIENT_EVIDENCE</option></select></label><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option>ALL</option><option value="open">OPEN</option><option value="acknowledged">ACKNOWLEDGED</option><option value="closed">CLOSED</option></select></label><label>Sort<select value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="confidence">Highest confidence</option></select></label></section><div className="page-with-inspector"><AlertTable alerts={filtered} selected={selectedAlert} onSelect={onSelectAlert} /><AlertInspector alert={selectedAlert} onClose={() => onSelectAlert(null)} onChanged={onChanged} /></div></div>;
 }
 
 function TrafficPage({ runtime, latest, timelineMetric, onTimelineMetric }: { runtime: ReturnType<typeof useRuntimeTelemetry>; latest: ReturnType<typeof useRuntimeTelemetry>["history"][number] | undefined; timelineMetric: TimelineMetric; onTimelineMetric: (value: TimelineMetric) => void }) {
-  return <div className="page-grid"><Timeline history={runtime.history} metric={timelineMetric} onMetricChange={onTimelineMetric} alerts={runtime.alerts} /><section className="traffic-stat-grid"><MetricCard label="TOTAL BYTES" value={formatBytes(runtime.metrics?.bytes ?? 0)} detail="Capture frames processed" /><MetricCard label="PACKET RATE" value={formatDecimal(latest?.packetsPerSecond ?? 0)} unit="/ sec" detail="Derived from real samples" /><MetricCard label="NEW FLOW RATE" value={formatDecimal(latest?.flowsPerSecond ?? 0)} unit="/ sec" detail="Derived from real samples" /></section><section className="panel unavailable-panel"><div className="eyebrow">ACTIVE FLOW TABLE</div><h2>Flow details are not exposed by the current runtime API</h2><p>The runtime does maintain active flow state and reports its count. This frontend deliberately does not invent an active-flow table; a future read-only flow-summary endpoint can populate it.</p></section></div>;
+  return <div className="page-grid"><Timeline history={runtime.history} metric={timelineMetric} onMetricChange={onTimelineMetric} alerts={runtime.alerts} /><section className="traffic-stat-grid"><MetricCard label="TOTAL BYTES" value={formatBytes(runtime.metrics?.bytes ?? 0)} detail="Capture frames processed" /><MetricCard label="PACKET RATE" value={formatDecimal(latest?.packetsPerSecond ?? 0)} unit="/ sec" detail="Derived from real samples" /><MetricCard label="NEW FLOW RATE" value={formatDecimal(latest?.flowsPerSecond ?? 0)} unit="/ sec" detail="Derived from real samples" /></section><HostTimeline points={runtime.hostTimeline} /><section className="panel flow-table"><div className="panel__heading"><div><div className="eyebrow">READ-ONLY FLOW SUMMARIES</div><h2>Recent and active flows</h2></div><span className="muted">{runtime.flows.length} retained</span></div>{runtime.flows.length ? <div className="table-scroll"><table><thead><tr><th>IP</th><th>Protocol</th><th>Endpoint A</th><th>Endpoint B</th><th>A → B</th><th>B → A</th><th>Bytes</th><th>Close reason</th><th>Last seen</th></tr></thead><tbody>{runtime.flows.map((flow) => <tr key={flow.flow_id}><td>IPv{flow.ip_version}</td><td>{flow.protocol}</td><td className="mono">{formatEndpoint(flow.endpoint_a)}</td><td className="mono">{formatEndpoint(flow.endpoint_b)}</td><td>{formatNumber(flow.packets_a_to_b)} packets</td><td>{formatNumber(flow.packets_b_to_a)} packets</td><td>{formatBytes(flow.bytes_a_to_b + flow.bytes_b_to_a)}</td><td>{flow.close_reason?.replaceAll("_", " ") ?? "active"}</td><td>{formatTime(flow.last_seen)}</td></tr>)}</tbody></table></div> : <p className="empty-copy">No flow summaries are available yet. Start an approved capture replay.</p>}</section></div>;
 }
 
-function DetectorsPage({ detectors, activeDetectors }: { detectors: DetectorStatus[]; activeDetectors: number }) {
-  return <div className="page-grid"><DetectorCards detectors={detectors} activeDetectors={activeDetectors} /><section className="panel coverage-matrix"><div className="panel__heading"><div><div className="eyebrow">JUDGE-FACING COVERAGE</div><h2>Detector coverage matrix</h2></div></div><div className="table-scroll"><table><thead><tr><th>Threat</th><th>Model</th><th>Primary evidence</th><th>Runtime status</th></tr></thead><tbody>{coverage.map(([threat, model, evidence]) => { const detector = detectors.find((item) => item.id === model); return <tr key={threat}><td>{threat}</td><td>{model.replaceAll("_", " ")}</td><td>{evidence}</td><td><StatusBadge label={detector?.status ?? "UNAVAILABLE"} tone={detector?.enabled ? "good" : "neutral"} /></td></tr>; })}</tbody></table></div><p className="panel-note">The Behaviour prototype targets BENIGN, DDOS, RECON and BOT_OR_C2_LIKE only. Bot is not a validated C2-beaconing label. DNS/TLS are planned; exfiltration is not trained.</p></section></div>;
+function HostTimeline({ points }: { points: HostTimelinePoint[] }) {
+  const hosts = useMemo(() => [...new Set(points.flatMap((point) => point.host ? [point.host] : []))].sort(), [points]);
+  const [selectedHost, setSelectedHost] = useState("");
+  useEffect(() => {
+    if ((!selectedHost || !hosts.includes(selectedHost)) && hosts.length) setSelectedHost(hosts[0]);
+  }, [hosts, selectedHost]);
+  const selected = points.filter((point) => point.host === selectedHost);
+  const measurements = selected.filter((point) => point.packet_count != null);
+  const alerts = selected.filter((point) => point.alert_id != null);
+  return <section className="panel host-timeline"><div className="panel__heading"><div><div className="eyebrow">BOUNDED HOST BEHAVIOUR</div><h2>Evidence accumulation timeline</h2></div><label>Host<select value={selectedHost} onChange={(event) => setSelectedHost(event.target.value)}><option value="">No observed host</option>{hosts.map((host) => <option key={host}>{host}</option>)}</select></label></div>{measurements.length ? <><div className="host-chart-grid"><div><span>Packets in window</span><Sparkline values={measurements.map((point) => point.packet_count ?? 0)} label={`Packet observations for ${selectedHost}`} /></div><div><span>Destination-port fan-out</span><Sparkline values={measurements.map((point) => point.unique_destination_ports ?? 0)} label={`Destination port diversity for ${selectedHost}`} tone="amber" /></div><div><span>Outbound bytes</span><Sparkline values={measurements.map((point) => point.outbound_bytes ?? 0)} label={`Outbound bytes for ${selectedHost}`} /></div></div><div className="timeline-meta"><span>{measurements.length} bounded evidence snapshots</span><span>{alerts.length} alert-fire markers</span><span>Latest window {measurements.at(-1)?.window_seconds ?? "—"} seconds</span></div>{alerts.length ? <ul className="host-alert-markers">{alerts.map((point) => <li key={`${point.alert_id}-${point.observed_at}`}><StatusBadge label="ALERT FIRED" tone="warning" /><span>{formatTime(point.observed_at)}</span><strong>{point.threat_class}</strong></li>)}</ul> : <p className="panel-note">No evidence-backed alert has fired for this host. The graph still shows the measured behavior that was available to the pipeline.</p>}</> : <p className="empty-copy">No host-window snapshots are available. Snapshots appear after a valid replay produces eligible flow observations.</p>}</section>;
+}
+
+function DetectorsPage({ runtime, activeDetectors }: { runtime: ReturnType<typeof useRuntimeTelemetry>; activeDetectors: number }) {
+  const detectors = runtime.detectors;
+  const coreComponents = runtime.readiness?.components
+    ? Object.entries(runtime.readiness.components).filter(([name]) => !["models", "inputs"].includes(name))
+    : [];
+  return <div className="page-grid"><DetectorCards detectors={detectors} activeDetectors={activeDetectors} /><section className="panel diagnostics-panel"><div className="panel__heading"><div><div className="eyebrow">HONEST COMPONENT HEALTH</div><h2>Readiness and diagnostics</h2></div><StatusBadge label={runtime.readiness?.status.toUpperCase() ?? "UNAVAILABLE"} tone={runtime.readiness?.status === "ready" ? "good" : "warning"} /></div><div className="diagnostic-grid">{coreComponents.map(([name, raw]) => { const component = raw as { status?: string; reason?: string | null }; return <article key={name}><strong>{name.replaceAll("_", " ")}</strong><StatusBadge label={(component.status ?? "unavailable").toUpperCase()} tone={component.status === "ready" ? "good" : "warning"} /><p>{component.reason ?? "No limitation reported."}</p></article>; })}</div><h3>Passive input adapters</h3><div className="table-scroll"><table><thead><tr><th>Input</th><th>Status</th><th>Network interface opened</th><th>Reason</th></tr></thead><tbody>{(runtime.diagnostics?.inputs ?? []).map((input) => <tr key={input.source_type}><td>{input.source_type.replaceAll("_", " ")}</td><td><StatusBadge label={input.status.toUpperCase()} tone={input.status === "ready" ? "good" : "neutral"} /></td><td>{input.opens_network_interface ? "YES" : "NO"}</td><td>{input.reason ?? "Approved local read-only adapter"}</td></tr>)}</tbody></table></div><p className="panel-note">Routing abstentions: {runtime.diagnostics?.routing.length ?? 0}. Model load failures are isolated by family and never replaced with hard-coded threat rules.</p></section><section className="panel coverage-matrix"><div className="panel__heading"><div><div className="eyebrow">SUPPORTED OUTCOME CONTRACT</div><h2>Detector coverage matrix</h2></div></div><div className="table-scroll"><table><thead><tr><th>Threat</th><th>Model</th><th>Primary evidence</th><th>Runtime status</th><th>Range support</th></tr></thead><tbody>{coverage.map(([threat, model, evidence]) => { const detector = detectors.find((item) => item.id === model); return <tr key={threat}><td>{threat}</td><td>{model.replaceAll("_", " ")}</td><td>{evidence}</td><td><StatusBadge label={detector?.status ?? "UNAVAILABLE"} tone={detector?.enabled ? "good" : "neutral"} /></td><td>{detector?.distribution_support ?? "unavailable"}</td></tr>; })}</tbody></table></div><p className="panel-note">All seven outcomes are defined by the Custodian contract. They remain unavailable until a defensible dataset mapping, isolated training, calibration, held-out evaluation, and trusted artifact exist. Broad legacy Bot labels are never presented as validated C2.</p></section></div>;
 }
 
 function PerformancePage({ runtime, latest }: { runtime: ReturnType<typeof useRuntimeTelemetry>; latest: ReturnType<typeof useRuntimeTelemetry>["history"][number] | undefined }) {
@@ -150,7 +185,8 @@ function PerformancePage({ runtime, latest }: { runtime: ReturnType<typeof useRu
         <KeyValue label="Original capture average">{metrics?.observed_average_mbps != null ? `${formatDecimal(metrics.observed_average_mbps, 4)} Mbps` : "Unavailable"}</KeyValue>
         <KeyValue label="Feature snapshots">{formatNumber(metrics?.feature_vectors ?? 0)}</KeyValue>
         <KeyValue label="Inference vectors / batches">{formatNumber(metrics?.inference_vectors ?? 0)} / {formatNumber(metrics?.inference_batches ?? 0)}</KeyValue>
-        <KeyValue label="Skipped non-IP / unsupported frames">{formatNumber(metrics?.skipped_frames ?? 0)}</KeyValue>
+        <KeyValue label="Unsupported frames">{formatNumber(metrics?.unsupported_frames ?? 0)}</KeyValue>
+        <KeyValue label="Malformed / truncated frames">{formatNumber((metrics?.malformed_frames ?? 0) + (metrics?.truncated_frames ?? 0))}</KeyValue>
         <p className="panel-note">Processing speed is measured on this laptop. It is separate from the original capture's traffic rate. Inference latency per vector is the measured batch time divided by its size.</p>
       </section>
     </section>

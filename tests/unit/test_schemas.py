@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from sentinelx.core.enums import (
+from custodian.core.enums import (
     AlertDecision,
     EvidenceQuality,
     FeatureFamily,
@@ -13,7 +13,7 @@ from sentinelx.core.enums import (
     ThreatClass,
     TransportProtocol,
 )
-from sentinelx.core.schemas import (
+from custodian.core.schemas import (
     AlertRecord,
     CapabilityProfile,
     DetectorVerdict,
@@ -115,7 +115,7 @@ def test_detector_verdict_rejects_unrelated_missing_evidence() -> None:
 def test_insufficient_alert_requires_missing_evidence(observed_at: datetime) -> None:
     with pytest.raises(ValidationError, match="must list missing evidence"):
         AlertRecord(
-            alert_id="sx-test",
+            alert_id="alert-test",
             timestamp=observed_at,
             flow_id="flow-test",
             threat_class=ThreatClass.C2,

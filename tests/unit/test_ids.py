@@ -5,9 +5,9 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from sentinelx.core.enums import ThreatClass, TransportProtocol
-from sentinelx.core.ids import canonical_endpoint_pair, make_alert_id, make_flow_id, make_window_id
-from sentinelx.core.schemas import Endpoint
+from custodian.core.enums import ThreatClass, TransportProtocol
+from custodian.core.ids import canonical_endpoint_pair, make_alert_id, make_flow_id, make_window_id
+from custodian.core.schemas import Endpoint
 
 
 def test_flow_id_is_independent_of_packet_direction(
@@ -52,6 +52,12 @@ def test_window_id_changes_between_windows(observed_at: datetime) -> None:
 def test_alert_id_requires_context(observed_at: datetime) -> None:
     with pytest.raises(ValueError, match="flow_id or window_id"):
         make_alert_id("behaviour", ThreatClass.C2, observed_at)
+
+
+def test_alert_id_uses_custodian_neutral_prefix(observed_at: datetime) -> None:
+    alert_id = make_alert_id("behaviour", ThreatClass.C2, observed_at, flow_id="flow-test")
+
+    assert alert_id.startswith("alert-")
 
 
 def test_ids_reject_naive_timestamps(

@@ -1,0 +1,4 @@
+enabled: true
+database_path: runtime/custodian.sqlite3
+retention_days: 30
+max_database_bytes: 1073741824

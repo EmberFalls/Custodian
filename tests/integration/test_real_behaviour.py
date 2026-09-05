@@ -4,18 +4,25 @@ from pathlib import Path
 
 import pytest
 
-from sentinelx.config import load_config_bundle
-from sentinelx.core.enums import ReplayMode
-from sentinelx.runtime.engine import SentinelEngine
+from custodian.config import load_config_bundle
+from custodian.core.enums import ReplayMode
+from custodian.runtime.engine import CustodianEngine
 
 
 def test_capture_through_real_behaviour_model():
     root = Path(__file__).resolve().parents[2]
+    config = load_config_bundle(root / "configs")
+    if not config.models.models["behaviour"].trusted:
+        pytest.skip("Behaviour artifact is intentionally untrusted until isolated review approval.")
     if not (root / "model_artifacts/behaviour-xgb-v1/model.json").is_file():
-        pytest.skip("Real Behaviour model absent; training is required. No mock substitutes for this test.")
-    engine = SentinelEngine(load_config_bundle(root / "configs"))
+        pytest.skip(
+            "Real Behaviour model absent; training is required. No mock substitutes for this test."
+        )
+    engine = CustodianEngine(config)
     assert engine.detectors["behaviour"].available, engine.detector_status()
     list(engine.replay(root / "data/demo/http.cap", mode=ReplayMode.FAST))
     assert engine.metrics.inference_vectors > 0
     assert engine.metrics.evidence_decisions == engine.metrics.inference_vectors
-    assert all(alert.raw_score is not None and alert.class_threshold is not None for alert in engine.alerts)
+    assert all(
+        alert.raw_score is not None and alert.class_threshold is not None for alert in engine.alerts
+    )

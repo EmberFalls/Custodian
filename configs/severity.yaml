@@ -1,3 +1,4 @@
+policy_version: severity.v1
 rules:
   DDOS: HIGH
   C2: HIGH
@@ -7,4 +8,5 @@ rules:
   DGA: MEDIUM
   DNS_TUNNEL: HIGH
   SUSPICIOUS_ENCRYPTED: MEDIUM
+  MALICIOUS_ENCRYPTED_SESSION: HIGH
   UNKNOWN: LOW

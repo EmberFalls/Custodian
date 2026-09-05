@@ -2,9 +2,9 @@
 
 from datetime import timedelta
 
-from sentinelx.core.enums import FlowDirection, TransportProtocol
-from sentinelx.core.schemas import PacketObservation
-from sentinelx.flow.manager import FlowManager
+from custodian.core.enums import FlowCloseReason, FlowDirection, TransportProtocol
+from custodian.core.schemas import PacketObservation
+from custodian.flow.manager import FlowManager
 
 
 def _packet(observed_at, src: str, dst: str, sport: int, dport: int) -> PacketObservation:
@@ -43,24 +43,30 @@ def test_idle_timeout_emits_completed_flow(observed_at) -> None:
     )
 
     assert later.expired[0].flow_id == first.snapshot.flow_id
+    assert later.expired[0].close_reason is FlowCloseReason.IDLE_TIMEOUT
     assert manager.active_flow_count == 1
 
 
 def test_capacity_and_lazy_update_are_bounded(observed_at):
     manager = FlowManager(max_flows=2)
     for port in range(10):
-        update = manager.process(_packet(observed_at, "10.0.0.1", "10.0.0.2", 50000 + port, 443), snapshot=False)
+        update = manager.process(
+            _packet(observed_at, "10.0.0.1", "10.0.0.2", 50000 + port, 443), snapshot=False
+        )
         assert update._snapshot is None
     assert manager.active_flow_count == 2
     assert manager.evicted_count == 8
 
 
 def test_temporal_expiry_clears_endpoint_indexes(observed_at):
-    from sentinelx.state.manager import TemporalStateManager
+    from custodian.state.manager import TemporalStateManager
+
     state = TemporalStateManager((10, 60), max_events=3)
     manager = FlowManager()
     for offset in range(5):
-        packet = _packet(observed_at + timedelta(seconds=offset), "10.0.0.1", "10.0.0.2", 50000 + offset, 443)
+        packet = _packet(
+            observed_at + timedelta(seconds=offset), "10.0.0.1", "10.0.0.2", 50000 + offset, 443
+        )
         state.observe(packet, manager.process(packet, snapshot=False))
     assert state.event_count == 3
     snapshot = state.snapshot("10.0.0.1", "10.0.0.2", observed_at + timedelta(seconds=5), 10)
@@ -68,3 +74,17 @@ def test_temporal_expiry_clears_endpoint_indexes(observed_at):
     state.expire(observed_at + timedelta(seconds=100))
     assert state.event_count == 0
     assert not state._outgoing and not state._incoming
+
+
+def test_tcp_fin_finalizes_flow_with_explicit_reason(observed_at) -> None:
+    manager = FlowManager()
+    packet = _packet(observed_at, "10.0.0.1", "10.0.0.2", 50000, 443).model_copy(
+        update={"tcp_flags": frozenset({"ACK", "FIN"})}
+    )
+
+    update = manager.process(packet)
+
+    assert manager.active_flow_count == 0
+    assert update.expired[-1].close_reason is FlowCloseReason.FIN
+    assert update.expired[-1].ip_version == 4
+    assert update.expired[-1].initiator_direction == "a"

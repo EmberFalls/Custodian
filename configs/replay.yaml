@@ -1,4 +1,5 @@
 capture_root: data/demo
+max_capture_size_bytes: 2147483648
 mode: paced
 speed_multiplier: 1.0
 loop: false

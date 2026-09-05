@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from sentinelx.config import DefaultSettings, load_config_bundle
-from sentinelx.core.enums import FeatureFamily, ReplayMode
+from custodian.config import DefaultSettings, load_config_bundle
+from custodian.core.enums import FeatureFamily, ReplayMode
 
 
 def test_repository_config_bundle_loads() -> None:
@@ -18,8 +18,11 @@ def test_repository_config_bundle_loads() -> None:
     assert bundle.replay.mode is ReplayMode.PACED
     assert set(bundle.models.models) == set(FeatureFamily)
     assert bundle.models.models[FeatureFamily.BEHAVIOUR].artifact_path.name == "behaviour-xgb-v1"
+    assert not bundle.models.models[FeatureFamily.BEHAVIOUR].trusted
     assert not bundle.models.models[FeatureFamily.DNS].enabled
     assert not bundle.models.models[FeatureFamily.TLS_QUIC].enabled
+    assert bundle.storage.enabled
+    assert bundle.storage.database_path.name == "custodian.sqlite3"
 
 
 def test_temporal_windows_must_be_sorted_and_unique() -> None:

@@ -3,5 +3,11 @@
 from training.train_common import train_family
 
 
-def train(input_path, output_dir):
-    return train_family(input_path, output_dir, family="tls_quic", schema_version="tls_quic.v1")
+def train(input_path, output_dir, *, isolation_acknowledged=False):
+    return train_family(
+        input_path,
+        output_dir,
+        family="tls_quic",
+        schema_version="tls_quic.v1",
+        isolation_acknowledged=isolation_acknowledged,
+    )

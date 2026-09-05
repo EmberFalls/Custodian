@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from sentinelx.features.behaviour_flow import (
+from custodian.features.behaviour_flow import (
     FLOW_DEFINITION_ID,
     FLOW_MODEL_FEATURES,
     flow_model_values,
@@ -24,9 +24,14 @@ REQUIRED_FILES = (
 CLASS_MAPPING = {"BENIGN": "BENIGN", "DDoS": "DDOS", "PortScan": "RECON", "Bot": "BOT_OR_C2_LIKE"}
 CLASSES = ("BENIGN", "DDOS", "RECON", "BOT_OR_C2_LIKE")
 COLUMNS = (
-    "Flow Duration", "Total Fwd Packets", "Total Backward Packets",
-    "Total Length of Fwd Packets", "Total Length of Bwd Packets",
-    "Fwd Packet Length Std", "Bwd Packet Length Std", "Flow IAT Std",
+    "Flow Duration",
+    "Total Fwd Packets",
+    "Total Backward Packets",
+    "Total Length of Fwd Packets",
+    "Total Length of Bwd Packets",
+    "Fwd Packet Length Std",
+    "Bwd Packet Length Std",
+    "Flow IAT Std",
 )
 CORE_COLUMNS = COLUMNS[:5]
 
@@ -60,18 +65,28 @@ def to_shared_features(frame: pd.DataFrame) -> pd.DataFrame:
     b_out = frame["Total Length of Fwd Packets"].to_numpy(dtype=float)
     b_in = frame["Total Length of Bwd Packets"].to_numpy(dtype=float)
     payload_variance = pooled_payload_variance(
-        n_out, n_in, b_out, b_in,
-        frame["Fwd Packet Length Std"].to_numpy(), frame["Bwd Packet Length Std"].to_numpy(),
+        n_out,
+        n_in,
+        b_out,
+        b_in,
+        frame["Fwd Packet Length Std"].to_numpy(),
+        frame["Bwd Packet Length Std"].to_numpy(),
     )
-    iat_variance = population_variance(frame["Flow IAT Std"].to_numpy() / 1_000_000,
-                                       n_out + n_in - 1)
+    iat_variance = population_variance(
+        frame["Flow IAT Std"].to_numpy() / 1_000_000, n_out + n_in - 1
+    )
     values = flow_model_values(
         duration=frame["Flow Duration"].to_numpy() / 1_000_000,
-        packets_out=n_out, packets_in=n_in, payload_out=b_out, payload_in=b_in,
-        payload_variance=payload_variance, iat_variance=iat_variance,
+        packets_out=n_out,
+        packets_in=n_in,
+        payload_out=b_out,
+        payload_in=b_in,
+        payload_variance=payload_variance,
+        iat_variance=iat_variance,
     )
-    return pd.DataFrame({f"feature__{name}": values[name] for name in FLOW_MODEL_FEATURES},
-                        index=frame.index).replace([np.inf, -np.inf], np.nan)
+    return pd.DataFrame(
+        {f"feature__{name}": values[name] for name in FLOW_MODEL_FEATURES}, index=frame.index
+    ).replace([np.inf, -np.inf], np.nan)
 
 
 def prepare_cicids2017(data_dir: str | Path, *, block_rows: int = 512):
@@ -110,13 +125,19 @@ def prepare_cicids2017(data_dir: str | Path, *, block_rows: int = 512):
         table["family"] = "behaviour"
         table["schema_version"] = "behaviour.v1"
         tables.append(table)
-        sources.append({
-            "filename": path.name, "path": str(path.resolve()), "sha256": file_sha256(path),
-            "bytes": path.stat().st_size, "source_label_counts": counts,
-            "unsupported_label_rows": int((~selected).sum()),
-            "invalid_core_rows_removed": int((~valid).sum()),
-            "nonfinite_numeric_cells": nonfinite, "clean_rows": len(table),
-        })
+        sources.append(
+            {
+                "filename": path.name,
+                "path": str(path.resolve()),
+                "sha256": file_sha256(path),
+                "bytes": path.stat().st_size,
+                "source_label_counts": counts,
+                "unsupported_label_rows": int((~selected).sum()),
+                "invalid_core_rows_removed": int((~valid).sum()),
+                "nonfinite_numeric_cells": nonfinite,
+                "clean_rows": len(table),
+            }
+        )
     table = pd.concat(tables, ignore_index=True)
     columns = [f"feature__{name}" for name in FLOW_MODEL_FEATURES]
     fingerprints = pd.util.hash_pandas_object(table[columns], index=False)
@@ -129,9 +150,12 @@ def prepare_cicids2017(data_dir: str | Path, *, block_rows: int = 512):
     if set(table["label"]) != set(CLASSES):
         raise ValueError("cleaned approved inputs do not contain all four required classes")
     report = {
-        "dataset": "CICIDS2017 / MachineLearningCSV", "sources": sources,
-        "source_label_counts": raw_counts, "mapped_label_counts_before_cleaning": mapped_counts,
-        "source_to_class": CLASS_MAPPING, "definition_id": FLOW_DEFINITION_ID,
+        "dataset": "CICIDS2017 / MachineLearningCSV",
+        "sources": sources,
+        "source_label_counts": raw_counts,
+        "mapped_label_counts_before_cleaning": mapped_counts,
+        "source_to_class": CLASS_MAPPING,
+        "definition_id": FLOW_DEFINITION_ID,
         "invalid_core_rows_removed": sum(s["invalid_core_rows_removed"] for s in sources),
         "conflicting_feature_rows_removed": int(conflicting.sum()),
         "duplicate_feature_rows_removed": int(duplicates.sum()),
@@ -147,9 +171,13 @@ def prepare_cicids2017(data_dir: str | Path, *, block_rows: int = 512):
             "Training uses completed CIC flows; partial runtime snapshots and unseen captures have unmeasured domain shift.",
             "Bot maps to BOT_OR_C2_LIKE; it is not a validated C2-beaconing label.",
         ],
-        "excluded_features": ["Destination Port", "Protocol (absent)", "TCP flags (export ambiguity)",
-                              "CIC global packet-size statistics (duplicate-first-packet issue)",
-                              "all temporal host/window features (missing provenance)"],
+        "excluded_features": [
+            "Destination Port",
+            "Protocol (absent)",
+            "TCP flags (export ambiguity)",
+            "CIC global packet-size statistics (duplicate-first-packet issue)",
+            "all temporal host/window features (missing provenance)",
+        ],
         "feature_reference": "https://github.com/ahlashkari/CICFlowMeter/blob/master/src/main/java/cic/cs/unb/ca/jnetpcap/BasicFlow.java",
     }
     return table, report

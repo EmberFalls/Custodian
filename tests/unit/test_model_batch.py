@@ -5,11 +5,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from sentinelx.core.enums import FeatureFamily
-from sentinelx.core.schemas import FeatureVector
-from sentinelx.features.behaviour_flow import FLOW_DEFINITION_ID, FLOW_MODEL_FEATURES
-from sentinelx.models.calibrator import MulticlassSigmoidCalibrator
-from sentinelx.models.loader import LoadedModelPackage
+from custodian.core.enums import FeatureFamily
+from custodian.core.schemas import FeatureVector
+from custodian.features.behaviour_flow import FLOW_DEFINITION_ID, FLOW_MODEL_FEATURES
+from custodian.models.calibrator import MulticlassSigmoidCalibrator
+from custodian.models.loader import LoadedModelPackage
 
 
 class StubEstimator:
@@ -30,17 +30,29 @@ def test_batch_preserves_row_order_and_raw_calibrated_class_alignment():
     for value in (12, 34):
         values = {name: float(value) for name in reversed(FLOW_MODEL_FEATURES)}
         values["runtime_only_evidence"] = 99
-        vectors.append(FeatureVector(
-            family=FeatureFamily.BEHAVIOUR, schema_version="behaviour.v1",
-            entity_id=str(value), window_id="TEST_ONLY", values=values,
-            availability={name: True for name in values},
-        ))
+        vectors.append(
+            FeatureVector(
+                family=FeatureFamily.BEHAVIOUR,
+                schema_version="behaviour.v1",
+                entity_id=str(value),
+                window_id="TEST_ONLY",
+                values=values,
+                availability={name: True for name in values},
+            )
+        )
     package = LoadedModelPackage(
-        Path("TEST_ONLY_NOT_AN_ARTIFACT"), StubEstimator(), StubCalibrator(),
-        {"family": "behaviour", "schema_version": "behaviour.v1",
-         "definition_id": FLOW_DEFINITION_ID,
-         "columns": [f"feature__{name}" for name in FLOW_MODEL_FEATURES]},
-        ("BENIGN", "DDOS", "RECON", "BOT_OR_C2_LIKE"), {}, {},
+        Path("TEST_ONLY_NOT_AN_ARTIFACT"),
+        StubEstimator(),
+        StubCalibrator(),
+        {
+            "family": "behaviour",
+            "schema_version": "behaviour.v1",
+            "definition_id": FLOW_DEFINITION_ID,
+            "columns": [f"feature__{name}" for name in FLOW_MODEL_FEATURES],
+        },
+        ("BENIGN", "DDOS", "RECON", "BOT_OR_C2_LIKE"),
+        {},
+        {},
     )
     first, second = package.predict_batch(vectors)
     assert first[:3] == ("DDOS", 0.6, 0.7)

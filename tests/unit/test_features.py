@@ -2,14 +2,14 @@
 
 from datetime import timedelta
 
-from sentinelx.core.enums import TransportProtocol
-from sentinelx.core.schemas import CapabilityProfile, PacketObservation
-from sentinelx.features.behaviour import BehaviourFeatureExtractor, periodicity_score
-from sentinelx.features.dns import DNSFeatureExtractor
-from sentinelx.features.tls_quic import TLSQUICFeatureExtractor
-from sentinelx.flow.manager import FlowManager
-from sentinelx.observation.capabilities import build_capability_profile
-from sentinelx.state.manager import TemporalStateManager
+from custodian.core.enums import TransportProtocol
+from custodian.core.schemas import CapabilityProfile, PacketObservation
+from custodian.features.behaviour import BehaviourFeatureExtractor, periodicity_score
+from custodian.features.dns import DNSFeatureExtractor
+from custodian.features.tls_quic import TLSQUICFeatureExtractor
+from custodian.flow.manager import FlowManager
+from custodian.observation.capabilities import build_capability_profile
+from custodian.state.manager import TemporalStateManager
 
 
 def _packet(observed_at, *, dns_metadata=None, tls_metadata=None) -> PacketObservation:

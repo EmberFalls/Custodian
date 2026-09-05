@@ -6,9 +6,9 @@ import time
 import dpkt
 import pytest
 
-from sentinelx.core.enums import ReplayMode
-from sentinelx.ingest.pcap import CaptureReader
-from sentinelx.ingest.replay import ReplayController
+from custodian.core.enums import ReplayMode
+from custodian.ingest.pcap import CaptureReader
+from custodian.ingest.replay import ReplayController
 
 
 def capture(tmp_path, suffix=".cap", gap=1.0):
@@ -40,17 +40,26 @@ def test_invalid_capture_fails(tmp_path):
 def test_accelerated_modes_never_sleep(tmp_path, mode):
     def forbidden(_):
         pytest.fail("accelerated replay slept")
-    controller = ReplayController(CaptureReader(capture(tmp_path, gap=3600)), mode=mode, sleeper=forbidden)
+
+    controller = ReplayController(
+        CaptureReader(capture(tmp_path, gap=3600)), mode=mode, sleeper=forbidden
+    )
     assert len(list(controller.frames())) == 2
     assert controller.progress == 1
 
 
 def test_paced_speed_and_processing_time(tmp_path):
     clock = [0.0]
+
     def sleep(seconds):
         clock[0] += seconds
-    controller = ReplayController(CaptureReader(capture(tmp_path)), speed_multiplier=2,
-                                  monotonic=lambda: clock[0], sleeper=sleep)
+
+    controller = ReplayController(
+        CaptureReader(capture(tmp_path)),
+        speed_multiplier=2,
+        monotonic=lambda: clock[0],
+        sleeper=sleep,
+    )
     frames = controller.frames()
     next(frames)
     clock[0] += 0.1
@@ -61,9 +70,11 @@ def test_paced_speed_and_processing_time(tmp_path):
 def test_stop_interrupts_long_delay_and_pause(tmp_path):
     controller = ReplayController(CaptureReader(capture(tmp_path, gap=3600)))
     seen = threading.Event()
+
     def run():
         for _ in controller.frames():
             seen.set()
+
     thread = threading.Thread(target=run)
     thread.start()
     assert seen.wait(1)
@@ -88,3 +99,25 @@ def test_pause_blocks_until_resumed(tmp_path):
     controller.resume()
     thread.join(1)
     assert len(seen) == 2
+
+
+def test_rebuild_reads_from_start_without_capture_pacing(tmp_path):
+    path = capture(tmp_path, gap=100.0)
+    rebuild_events = []
+    sleeps = []
+    controller = ReplayController(
+        CaptureReader(path),
+        mode=ReplayMode.PACED,
+        rebuild_until_fraction=0.9,
+        on_rebuild_complete=lambda: rebuild_events.append("complete"),
+        monotonic=lambda: 0.0,
+        sleeper=sleeps.append,
+    )
+
+    frames = list(controller.frames())
+
+    assert len(frames) == 2
+    assert rebuild_events == ["complete"]
+    assert controller.rebuilding is False
+    assert controller.completed is True
+    assert sleeps == []

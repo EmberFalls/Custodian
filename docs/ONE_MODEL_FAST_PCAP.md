@@ -1,6 +1,6 @@
 # One-model / fast-PCAP implementation report
 
-Updated 2026-09-02. Scope: `SENTINEL-X_Prototype_OneModel_FastPCAP_Codex.md`, preserving the passive prototype architecture and dark-green UI.
+Updated 2026-09-02. Historical prototype report, retained for provenance; the full Custodian blueprint now governs implementation.
 
 ## Outcome
 
@@ -15,7 +15,7 @@ Paths are relative to the repository root. Useful existing code was extended. Pr
 | Phase | Implementation and files | Validation / outstanding work |
 | --- | --- | --- |
 | A: audit | Inspected per-packet pipeline, training wrappers, configs, UI, captures and CSVs. | Found repeated snapshots/state rebuilding, per-packet inference setup, default timestamp pacing, missing trained artifacts. |
-| B: replay | `src/sentinelx/ingest/{pcap,replay}.py`, `api/app.py`, `configs/replay.yaml` | Streaming format detection, Ethernet/IP validation, three modes, interruptible waits and file progress. Unit/API tests and real `.cap` replays pass. |
+| B: replay | `src/custodian/ingest/{pcap,replay}.py`, `api/app.py`, `configs/replay.yaml` | Streaming format detection, Ethernet/IP validation, three modes, interruptible waits and file progress. Unit/API tests and real `.cap` replays pass. |
 | C: state | `flow/{manager,record}.py`, `state/{manager,windows}.py`, `core/schemas.py`, `parsing/packet.py`, `config.py`, `configs/default.yaml` | Lazy snapshots, online statistics, first-sender direction, bounded LRU flows and indexed temporal events. Tests pass. |
 | D: features | `features/{behaviour,behaviour_flow,schema}.py`, `observation/capabilities.py` | Shared vectorized/scalar math. Exact CSV/runtime arithmetic parity test passes; temporal signals remain runtime-only evidence. |
 | E: training | `training/{cicids2017,train_behaviour,splits}.py`, `pyproject.toml` | Real CSV cleaning, provenance, grouped four-way split, weighted XGBoost training/export code. Training completed in 9.865 s and the versioned package was exported. |

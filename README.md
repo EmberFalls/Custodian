@@ -1,76 +1,63 @@
-# Custodian — One-model presentation prototype
+# Custodian
 
-Passive, read-only PCAP replay with incremental flow processing, calibrated Behaviour-model integration, an Evidence Gate, and the existing dark-green dashboard. No scanning, traffic injection, mitigation, or payload decryption.
+Custodian is a local-first, passive network-analysis system. It incrementally reads authorized packet captures, reconstructs bidirectional flows, extracts observable metadata, and presents evidence-aware results in a local dashboard. It does not scan, inject, block, exploit, replay traffic onto a network, or decrypt TLS/QUIC payloads.
 
-## Readiness
+The governing implementation contract is [docs/CUSTODIAN_FULL_IMPLEMENTATION_BLUEPRINT.md](docs/CUSTODIAN_FULL_IMPLEMENTATION_BLUEPRINT.md). Current gaps and the approved phase order are recorded in [docs/PHASE_0_GAP_ANALYSIS.md](docs/PHASE_0_GAP_ANALYSIS.md).
+The current application/deferred-scope ledger is [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
 
-- PACED (1×/2×/5×/10×), FAST, and BENCHMARK replay are implemented, with pause/resume/stop, file progress, bounded state, and aggregated live telemetry.
-- Only XGBoost Behaviour is in scope: BENIGN, DDOS, RECON, BOT_OR_C2_LIKE. DNS and TLS/QUIC remain PLANNED.
-- A real XGBoost Behaviour package (`behaviour-xgb-v1`) is trained from the approved CICIDS2017 CSVs, calibrated, integrity-checked, and loaded by the API. It covers BENIGN, DDOS, RECON and BOT_OR_C2_LIKE. DNS and TLS/QUIC remain PLANNED.
-- The final held-out CSV test accuracy was 0.9980 and macro F1 was 0.9377. These are not leakage-free host/session/streaming-PCAP results; see the implementation report for split and domain-shift limits. A zero-alert replay does not prove a capture is safe.
+## Current safety state
 
-Phase status, feature definitions, data counts, limitations and measured replay timings: [implementation report](docs/ONE_MODEL_FAST_PCAP.md).
+- API and dashboard are localhost-only.
+- Offline capture replay means reading a file into the local analysis pipeline; it never transmits captured packets.
+- Model artifacts are untrusted by default and are not deserialized during startup.
+- DNS and encrypted-session models remain unavailable until approved data, isolated training, calibration, and artifact validation exist.
+- Model training and passive live-interface testing are intentionally deferred until the user completes and approves the documented isolation checklist.
 
-## Run on this laptop
+## Run the application
 
-Use two PowerShell terminals. Run from the Custodian repository, not another project's API directory.
+Use two PowerShell terminals from this repository.
 
 Backend:
 
 ```powershell
-Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Sentinel-X'
-& 'E:\Python\python.exe' -m uvicorn sentinelx.api.app:app --host 127.0.0.1 --port 8000
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
+& 'E:\Python\python.exe' -m uvicorn custodian.api.app:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
 Frontend:
 
 ```powershell
-Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Sentinel-X\frontend'
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian\frontend'
 & 'E:\Node\npm.cmd' run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-Open <http://localhost:5173/>. Put a supported Ethernet/IP `.cap`, `.pcap`, or `.pcapng` inside `data/demo/`. Enter `http.cap`, choose FAST, and click Start replay. PACED follows capture timestamps; FAST ignores their delays. Stop both servers with Ctrl+C. PyCharm needs no special web configuration: choose `E:\Python\python.exe` as the interpreter and the repository root as the backend working directory.
+Open <http://127.0.0.1:5173/>. Put only an authorized `.cap`, `.pcap`, or `.pcapng` file in `data/demo/`. A filename extension is only a hint; Custodian validates the file format before processing. CSV datasets belong to the isolated preparation/training workflow and cannot be started from replay controls.
 
-For a fresh install (Python 3.11+ and Node.js required):
+Stop each server with `Ctrl+C` in the terminal that started it. PyCharm needs no special web setting: select `E:\Python\python.exe` as the interpreter and use the repository root as the backend working directory.
+
+## Install and verify application dependencies
+
+Dependency installation requires temporary internet access. Do it only in an environment you approve. Dataset handling and training remain separate and offline.
 
 ```powershell
-Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Sentinel-X'
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
 & 'E:\Python\python.exe' -m pip install -e '.[dev]'
 Set-Location frontend
 & 'E:\Node\npm.cmd' ci
 ```
 
-Installing packages does not override Application Control. If a port is occupied, stop only the server you own or configure the Vite proxy and API port together; do not terminate unrelated projects.
-
-## Train after the environment is approved and working
-
-First check XGBoost can load. If a Windows policy blocks it again, use an approved environment rather than bypassing security controls:
+Verification does not train a model:
 
 ```powershell
-Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Sentinel-X'
-& 'E:\Python\python.exe' -c 'import xgboost; print(xgboost.__version__)'
-& 'E:\Python\python.exe' -m training.train_behaviour --data-dir 'C:\Users\Aaryan\Downloads' --output-dir model_artifacts/behaviour-xgb-v1
-```
-
-Only these exact CICIDS2017 files are consumed:
-
-- `Friday-WorkingHours-Morning.pcap_ISCX.csv`
-- `Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv`
-- `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv`
-
-They already exist in this laptop's Downloads directory. On another machine, put them in `data/raw/cicids2017/` and use that `--data-dir`. The command does not invent missing inputs. Add `--prepare-only` to prepare real data without fitting. Nonempty artifact destinations are not overwritten; use a new versioned directory and update `configs/models.yaml` when retraining. Restart the API after exporting a complete package.
-
-## Validate
-
-```powershell
-Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Sentinel-X'
-& 'E:\Python\python.exe' -m pytest -q
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
+& 'E:\Python\python.exe' -m pytest -q tests\unit tests\integration\test_api.py tests\integration\test_pcap_to_flow.py
 & 'E:\Python\python.exe' -m ruff check src tests training
-& 'E:\Python\python.exe' -m sentinelx.runtime.benchmark --capture data/demo/http.cap --output reports/benchmarks/my-local-run.json
 Set-Location frontend
 & 'E:\Node\npm.cmd' run build
 ```
 
-The benchmark runs PACED at 1×, then FAST and BENCHMARK: allow at least the capture's duration. Use a new report filename each run. The real-model integration test verifies an available local artifact and skips only when one is absent.
+Do not enable `trusted: true` in `configs/models.yaml` merely to make an alert appear. Approval requires verified provenance, checksums, compatible feature metadata, and the isolated-VM training/review process described in [docs/data-governance.md](docs/data-governance.md).
 
-Captures, processed datasets, model artifacts and machine-specific benchmark reports are ignored by Git. Only use authorized captures and trusted model packages; joblib deserialization requires trust.
+## Repository hygiene
+
+Raw captures, dataset files, processed tables, model binaries, local databases, reports, caches, secrets, virtual environments, and frontend build output are ignored by default. Commit manifests and documentation, not private or generated data.
