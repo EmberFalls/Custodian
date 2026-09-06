@@ -1,6 +1,7 @@
 import { CustodianShieldIcon } from "../landing/icons/CustodianShieldIcon";
 import { StatusBadge } from "../Visuals";
 import type { useRuntimeTelemetry } from "../../hooks/useRuntimeTelemetry";
+import { useAuth } from "../../context/AuthContext";
 
 export type DashboardPage = "monitor" | "alerts" | "traffic" | "detectors" | "performance";
 
@@ -11,6 +12,7 @@ interface GlobalHeaderProps {
   onNavigateHome: () => void;
   presentationMode: boolean;
   onTogglePresentation: () => void;
+  onSignOut: () => void;
 }
 
 const navigationItems: Array<{ id: DashboardPage; num: string; label: string }> = [
@@ -28,7 +30,9 @@ export function GlobalHeader({
   onNavigateHome,
   presentationMode,
   onTogglePresentation,
+  onSignOut,
 }: GlobalHeaderProps) {
+  const { user } = useAuth();
   const monitorState = runtime.connected && runtime.status?.passive_monitor ? "ACTIVE" : "OFFLINE";
   const returnPath = runtime.status?.return_path ?? "NONE";
   const sourceText = runtime.status?.source_type
@@ -123,6 +127,102 @@ export function GlobalHeader({
               }
             />
           </div>
+
+          {/* User Info + Sign Out — always visible in dashboard (auth is required) */}
+          {user && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "4px 12px",
+                borderRadius: "8px",
+                backgroundColor: "rgba(24, 24, 27, 0.9)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                fontSize: "12px",
+                whiteSpace: "nowrap",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "14px" }}>
+                  {user.role === "Admin" ? "🛡️" : user.role === "Analyst" ? "🔍" : "👁️"}
+                </span>
+                <span style={{ fontWeight: 600, color: "#f4f4f5", letterSpacing: "-0.01em" }}>{user.display_name}</span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 7px",
+                    borderRadius: "4px",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    backgroundColor:
+                      user.role === "Admin"
+                        ? "rgba(239, 68, 68, 0.2)"
+                        : user.role === "Analyst"
+                        ? "rgba(56, 189, 248, 0.2)"
+                        : "rgba(168, 85, 247, 0.2)",
+                    color:
+                      user.role === "Admin"
+                        ? "#f87171"
+                        : user.role === "Analyst"
+                        ? "#38bdf8"
+                        : "#c084fc",
+                    border: `1px solid ${
+                      user.role === "Admin"
+                        ? "rgba(239, 68, 68, 0.35)"
+                        : user.role === "Analyst"
+                        ? "rgba(56, 189, 248, 0.35)"
+                        : "rgba(168, 85, 247, 0.35)"
+                    }`,
+                  }}
+                >
+                  {user.role}
+                </span>
+              </div>
+
+              {/* Sign Out — takes user back to landing page */}
+              <button
+                onClick={onSignOut}
+                title="Sign out of Custodian"
+                style={{
+                  background: "rgba(239, 68, 68, 0.16)",
+                  border: "1px solid rgba(239, 68, 68, 0.4)",
+                  borderRadius: "5px",
+                  color: "#fca5a5",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  padding: "4px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  transition: "all 0.15s ease",
+                  fontFamily: "'IBM Plex Sans', -apple-system, sans-serif",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.32)";
+                  e.currentTarget.style.color = "#ffffff";
+                  e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.6)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.16)";
+                  e.currentTarget.style.color = "#fca5a5";
+                  e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.4)";
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          )}
+
           <button
             className={`dash-pres-btn font-sans ${presentationMode ? "is-active" : ""}`}
             onClick={onTogglePresentation}

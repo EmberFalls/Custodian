@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { CustodianShieldIcon } from "./icons/CustodianShieldIcon";
+import { useAuth } from "../../context/AuthContext";
 
 interface LandingNavbarProps {
   onLaunchDashboard: () => void;
 }
 
 export function LandingNavbar({ onLaunchDashboard }: LandingNavbarProps) {
+  const { user, openAuthModal } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -129,8 +131,8 @@ export function LandingNavbar({ onLaunchDashboard }: LandingNavbarProps) {
         </a>
       </nav>
 
-      {/* Right controls: Theme, Language, Launch button */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      {/* Right controls: Theme, Auth controls (Sign In / Sign Out), Launch button */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
         {/* Theme pill indicator */}
         <div
           style={{
@@ -149,6 +151,43 @@ export function LandingNavbar({ onLaunchDashboard }: LandingNavbarProps) {
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         </div>
+
+        {/* ── Sign In: only shown on landing page when not authenticated ── */}
+        {!user && (
+          <button
+            onClick={openAuthModal}
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              color: "#ffffff",
+              border: "1px solid rgba(255, 255, 255, 0.18)",
+              borderRadius: "6px",
+              padding: "6px 14px",
+              fontFamily: "'IBM Plex Sans', -apple-system, sans-serif",
+              fontSize: "0.82rem",
+              fontWeight: 500,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "rgba(168, 85, 247, 0.5)";
+              e.currentTarget.style.backgroundColor = "rgba(124, 58, 237, 0.15)";
+              e.currentTarget.style.color = "#ffffff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.18)";
+              e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            Sign In
+          </button>
+        )}
 
         {/* Solid Zeabur purple CTA */}
         <button

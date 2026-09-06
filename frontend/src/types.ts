@@ -212,3 +212,21 @@ export interface TelemetryEnvelope {
   metrics: RuntimeMetrics;
   detectors: DetectorStatus[];
 }
+
+export type Role = "Admin" | "Analyst" | "Auditor";
+
+export interface User {
+  user_id: string;
+  username: string;
+  display_name: string;
+  role: Role;
+  created_at: string;
+}
+
+export interface DemoCredential {
+  username: string;
+  display_name: string;
+  role: Role;
+  password: string;
+}
+

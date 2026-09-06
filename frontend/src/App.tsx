@@ -8,12 +8,15 @@ import { AlertsPage } from "./components/dashboard/AlertsPage";
 import { TrafficPage } from "./components/dashboard/TrafficPage";
 import { DetectorsPage } from "./components/dashboard/DetectorsPage";
 import { PerformancePage } from "./components/dashboard/PerformancePage";
+import { LoginModal } from "./components/LoginModal";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 import { useRuntimeTelemetry } from "./hooks/useRuntimeTelemetry";
 import type { AlertRecord } from "./types";
 
-export function App() {
+function DashboardContent() {
   const [view, setView] = useState<"landing" | "dashboard">("landing");
+  const { user, logout, openAuthModal } = useAuth();
   const runtime = useRuntimeTelemetry();
   const [page, setPage] = useState<DashboardPage>("monitor");
   const [selectedAlert, setSelectedAlert] = useState<AlertRecord | null>(null);
@@ -49,8 +52,26 @@ export function App() {
     );
   }, [runtime.alerts]);
 
+  const handleLaunchDashboard = () => {
+    if (!user) {
+      openAuthModal();
+    } else {
+      setView("dashboard");
+    }
+  };
+
+  const handleSignOut = async () => {
+    await logout();
+    setView("landing");
+  };
+
   if (view === "landing") {
-    return <LandingPage onLaunchDashboard={() => setView("dashboard")} />;
+    return (
+      <>
+        <LandingPage onLaunchDashboard={handleLaunchDashboard} />
+        <LoginModal onSuccess={() => setView("dashboard")} />
+      </>
+    );
   }
 
   return (
@@ -62,6 +83,7 @@ export function App() {
         onNavigateHome={() => setView("landing")}
         presentationMode={presentationMode}
         onTogglePresentation={() => setPresentationMode((c) => !c)}
+        onSignOut={handleSignOut}
       />
 
       <main className="dash-main">
@@ -88,6 +110,16 @@ export function App() {
 
         {page === "performance" ? <PerformancePage runtime={runtime} /> : null}
       </main>
+
+      <LoginModal />
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <DashboardContent />
+    </AuthProvider>
   );
 }

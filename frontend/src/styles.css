@@ -656,9 +656,9 @@ tbody tr:focus-visible { outline: 2px solid var(--accent-purple); }
   justify-content: space-between;
   align-items: center;
   min-height: 54px;
-  padding: 0 clamp(18px, 3vw, 48px);
-  gap: 16px;
-  flex-wrap: wrap;
+  padding: 0 clamp(16px, 2.5vw, 36px);
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 /* Brand (left) */
@@ -679,9 +679,10 @@ tbody tr:focus-visible { outline: 2px solid var(--accent-purple); }
 
 /* Status strip — 6 Core Global Status Questions */
 .dash-status-strip {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;
   background: rgba(255,255,255,0.02); padding: 4px 12px;
   border-radius: 9px; border: 1px solid var(--border-subtle);
+  overflow-x: auto;
 }
 .dash-status-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .dash-status-label {

@@ -62,8 +62,9 @@ export function BinaryWaveCanvas() {
 
     const handleResize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = window.innerWidth;
-      height = window.innerHeight;
+      const parent = canvas.parentElement;
+      width = parent && parent.clientWidth > 0 ? parent.clientWidth : window.innerWidth;
+      height = parent && parent.clientHeight > 0 ? parent.clientHeight : window.innerHeight;
 
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);

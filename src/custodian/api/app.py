@@ -11,13 +11,20 @@ from threading import RLock, Thread
 from typing import Literal
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import Cookie, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse
 
+from custodian.api.auth import (
+    DEMO_USERS,
+    create_access_token,
+    get_current_user_from_raw_token,
+    seed_demo_users_if_needed,
+    verify_password,
+)
 from custodian.config import ConfigBundle, load_config_bundle
 from custodian.core.enums import AlertStatus, CaptureStatus, ReplayMode
 from custodian.core.schemas import AlertRecord, CapturePacketCounts, CaptureRecord
@@ -355,6 +362,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
         try:
             repository = SQLiteRepository(config.storage.database_path)
             repository.initialize()
+            seed_demo_users_if_needed(repository)
             repository.apply_retention(
                 retention_days=config.storage.retention_days,
                 max_database_bytes=config.storage.max_database_bytes,
@@ -427,6 +435,86 @@ def create_app(config: ConfigBundle) -> FastAPI:
                 },
             },
         )
+
+    @app.post("/api/v1/auth/login")
+    async def login(request: Request):
+        username = ""
+        password = ""
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            body = await request.json()
+            username = body.get("username", "")
+            password = body.get("password", "")
+        else:
+            form = await request.form()
+            username = form.get("username", "")
+            password = form.get("password", "")
+
+        if not repository:
+            raise HTTPException(status_code=500, detail="Database repository unavailable")
+
+        user = repository.get_user_by_username(username)
+        if not user or not verify_password(password, user["password_hash"]):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        token = create_access_token(user["user_id"], user["username"], user["role"])
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "user_id": user["user_id"],
+                "username": user["username"],
+                "display_name": user["display_name"],
+                "role": user["role"],
+                "created_at": user["created_at"],
+            },
+        }
+
+    @app.get("/api/v1/auth/me")
+    def auth_me(
+        authorization: str | None = Header(None),
+        custodian_token: str | None = Cookie(None),
+    ):
+        token = None
+        if authorization and authorization.startswith("Bearer "):
+            token = authorization[7:].strip()
+        elif custodian_token:
+            token = custodian_token
+
+        if not token:
+            raise HTTPException(status_code=401, detail="Authentication token required")
+
+        if not repository:
+            raise HTTPException(status_code=500, detail="Database repository unavailable")
+
+        user = get_current_user_from_raw_token(token, repository)
+        return {
+            "user_id": user["user_id"],
+            "username": user["username"],
+            "display_name": user["display_name"],
+            "role": user["role"],
+            "created_at": user["created_at"],
+        }
+
+    @app.post("/api/v1/auth/logout")
+    def logout():
+        return {"status": "ok", "message": "Successfully logged out"}
+
+    @app.get("/api/v1/auth/demo-credentials")
+    def demo_credentials():
+        return [
+            {
+                "username": u["username"],
+                "display_name": u["display_name"],
+                "role": u["role"],
+                "password": u["password"],
+            }
+            for u in DEMO_USERS
+        ]
 
     @app.get("/health")
     def health():
