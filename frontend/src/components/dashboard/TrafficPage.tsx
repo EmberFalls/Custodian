@@ -24,7 +24,7 @@ export function TrafficPage({ runtime }: TrafficPageProps) {
         alerts={runtime.alerts}
       />
 
-      {/* Rate stat cards */}
+      {/* Rate stat cards — Fortexa multi-accent styled */}
       <section className="dash-traffic-stats">
         <MetricCard
           label="TOTAL BYTES"
@@ -74,7 +74,7 @@ export function TrafficPage({ runtime }: TrafficPageProps) {
                   <th>Endpoint B</th>
                   <th>A → B</th>
                   <th>B → A</th>
-                  <th>Bytes</th>
+                  <th>Total Bytes</th>
                   <th>Close reason</th>
                   <th>Last seen</th>
                 </tr>
@@ -92,7 +92,7 @@ export function TrafficPage({ runtime }: TrafficPageProps) {
                     <tr key={flow.flow_id}>
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span className={`row-icon-badge ${protoClass}`} style={{ width: "32px", height: "32px", fontSize: "0.74rem" }}>
+                          <span className={`row-icon-badge ${protoClass}`} style={{ width: "30px", height: "30px", fontSize: "0.72rem" }}>
                             {flow.protocol.slice(0, 3)}
                           </span>
                           <span className="font-mono" style={{ fontWeight: 600, color: "var(--text-primary)" }}>{flow.protocol}</span>
@@ -128,7 +128,7 @@ export function TrafficPage({ runtime }: TrafficPageProps) {
             </table>
           </div>
         ) : (
-          <p className="empty-copy">
+          <p className="panel-note">
             No supported IP flow summaries are available for this run. Start an approved capture
             replay to observe reconstructed bidirectional flows.
           </p>
@@ -230,7 +230,7 @@ function HostBehaviourTimeline({ points }: { points: HostTimelinePoint[] }) {
           )}
         </>
       ) : (
-        <p className="empty-copy">
+        <p className="panel-note">
           No host-window snapshots are available. Snapshots appear after a valid replay produces
           eligible flow observations.
         </p>

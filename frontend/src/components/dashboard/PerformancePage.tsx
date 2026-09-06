@@ -27,7 +27,7 @@ export function PerformancePage({ runtime }: PerformancePageProps) {
 
   return (
     <div className="dash-page">
-      {/* Hero metric cards with Fortexa bar sparklines & tones */}
+      {/* Hero metric cards with Fortexa bar sparklines & tones (Zero Emojis) */}
       <section className="dash-perf-hero">
         <MetricCard
           label="PROCESSING THROUGHPUT"
@@ -99,83 +99,50 @@ export function PerformancePage({ runtime }: PerformancePageProps) {
             <KeyValue label="FEATURE SNAPSHOTS">
               {formatNumber(metrics?.feature_vectors ?? 0)}
             </KeyValue>
-            <KeyValue label="INFERENCE VECTORS / BATCHES">
-              {formatNumber(metrics?.inference_vectors ?? 0)} /{" "}
-              {formatNumber(metrics?.inference_batches ?? 0)}
+            <KeyValue label="INFERENCE VECTORS">
+              {formatNumber(metrics?.inference_vectors ?? 0)}
             </KeyValue>
-            <KeyValue label="UNSUPPORTED FRAMES">
-              {formatNumber(metrics?.unsupported_frames ?? 0)}
-            </KeyValue>
-            <KeyValue label="MALFORMED / TRUNCATED">
-              {formatNumber((metrics?.malformed_frames ?? 0) + (metrics?.truncated_frames ?? 0))}
+            <KeyValue label="EVIDENCE DECISIONS">
+              {formatNumber(metrics?.evidence_decisions ?? 0)}
             </KeyValue>
           </div>
-          <p className="panel-note">
-            Processing speed is measured on this laptop's CPU pipeline. It is separate from the
-            original capture's real-time traffic rate.
-          </p>
         </section>
       </section>
 
-      {/* Stage latency table */}
+      {/* Latency breakdown */}
       <section className="panel">
         <div className="panel__heading">
           <div>
-            <div className="eyebrow">PIPELINE-ORDERED STAGE TIMING</div>
-            <h2>Measured stage latency</h2>
+            <div className="eyebrow">STAGE TIMING BREAKDOWN</div>
+            <h2>Pipeline stage latencies</h2>
           </div>
+          <span className="muted font-mono">Microsecond precision</span>
         </div>
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Pipeline Stage</th>
-                <th>P50 Latency</th>
-                <th>P95 Latency</th>
+                <th>Stage</th>
+                <th>P50 (Median)</th>
+                <th>P95 (95th %)</th>
               </tr>
             </thead>
             <tbody>
-              {stages.map((stage, idx) => {
-                const timing = metrics?.latency_ms[stage];
-                const stageTones = ["row-icon-badge--purple", "row-icon-badge--teal", "row-icon-badge--pink", "row-icon-badge--orange"];
-                const badgeTone = stageTones[idx % stageTones.length];
-
+              {stages.map((stage) => {
+                const row = metrics?.latency_ms[stage];
                 return (
                   <tr key={stage}>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span className={`row-icon-badge ${badgeTone}`} style={{ width: "30px", height: "30px", fontSize: "0.72rem" }}>
-                          0{idx + 1}
-                        </span>
-                        <span className="font-mono" style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                          {stage.replaceAll("_", " ")}
-                        </span>
-                      </div>
-                    </td>
                     <td className="font-mono">
-                      {timing ? (
-                        <strong style={{ color: "var(--emerald)" }}>{formatDecimal(timing.p50, 4)} ms</strong>
-                      ) : (
-                        <span style={{ color: "var(--text-muted)" }}>Not measured</span>
-                      )}
+                      <strong>{stage.replaceAll("_", " ")}</strong>
                     </td>
-                    <td className="font-mono">
-                      {timing ? (
-                        <strong style={{ color: "var(--accent-purple)" }}>{formatDecimal(timing.p95, 4)} ms</strong>
-                      ) : (
-                        <span style={{ color: "var(--text-muted)" }}>Not measured</span>
-                      )}
-                    </td>
+                    <td className="font-mono">{row ? `${formatDecimal(row.p50, 3)} ms` : "—"}</td>
+                    <td className="font-mono">{row ? `${formatDecimal(row.p95, 3)} ms` : "—"}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <p className="panel-note">
-          Stages are displayed in pipeline order. BENCHMARK mode samples packet stages every 32
-          frames. Model stages remain unmeasured until a real approved model artifact is loaded.
-        </p>
       </section>
     </div>
   );

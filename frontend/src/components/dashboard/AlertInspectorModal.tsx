@@ -84,12 +84,13 @@ export function AlertInspectorModal({ alert, onClose, onChanged, isDrawer = fals
           <div className="inspector__id font-mono">ID: {alert.alert_id}</div>
         </div>
         <button
-          className="btn-tactile-secondary icon-close-btn"
+          className="button button--quiet font-mono"
           onClick={onClose}
           aria-label="Close alert inspector"
           title="Close (Esc)"
+          style={{ padding: "4px 8px", fontSize: "0.75rem" }}
         >
-          ✕
+          [Close]
         </button>
       </div>
 
@@ -118,74 +119,62 @@ export function AlertInspectorModal({ alert, onClose, onChanged, isDrawer = fals
         />
       </div>
 
-      {/* 2. Plain-language summary */}
+      {/* 2. Plain-language summary of what was observed */}
       <div className="inspector__summary-callout">
-        <div className="inspector__summary-text">
+        <p className="inspector__summary-text">
           {alert.decision === "ACCEPT" ? (
-            <>Candidate met configured confidence and observation capability criteria for <strong>{alert.threat_class}</strong>.</>
+            <>
+              Observed communication between <strong>{formatEndpoint(alert.source)}</strong> and <strong>{formatEndpoint(alert.destination)}</strong> exhibited feature vectors characteristic of <strong>{alert.threat_class}</strong>. The detection met both the calibrated confidence threshold and required evidence completeness standards.
+            </>
           ) : alert.decision === "UNKNOWN_SUSPICIOUS" ? (
-            <>Anomalous traffic observed, but evidence does not support narrow classification into a known threat family.</>
+            <>
+              Observed anomalous traffic patterns originating from <strong>{formatEndpoint(alert.source)}</strong>. The activity was classified as suspicious, but available evidence did not support a narrower, high-confidence signature.
+            </>
           ) : (
-            <>Candidate observed, but required telemetry was missing or insufficient to satisfy the Evidence Gate.</>
+            <>
+              Potential candidate pattern detected for <strong>{alert.threat_class}</strong>, but evaluation was suppressed by the Evidence Gate due to missing required observable fields.
+            </>
           )}
-        </div>
+        </p>
       </div>
 
-      {/* 3. Observed Endpoints and Timings */}
+      {/* 3. Entity & Timing */}
       <section className="inspector__section">
-        <div className="inspector__sec-title font-mono">OBSERVED ENDPOINTS & DURATION</div>
+        <div className="inspector__sec-title font-mono">OBSERVED ENDPOINTS & LIFECYCLE</div>
         <div className="inspector__keyval-grid">
           <KeyValue label="SOURCE">{formatEndpoint(alert.source)}</KeyValue>
           <KeyValue label="DESTINATION">{formatEndpoint(alert.destination)}</KeyValue>
-          <KeyValue label="FIRST OBSERVED">{formatTime(alert.first_seen ?? alert.timestamp)}</KeyValue>
-          <KeyValue label="LAST OBSERVED">{formatTime(alert.last_seen ?? alert.timestamp)}</KeyValue>
-          <KeyValue label="DEDUPLICATED OCCURRENCES">{alert.occurrence_count.toString()}</KeyValue>
-          <KeyValue label="SOURCE TYPE">{alert.source_type?.toUpperCase() ?? "PCAP REPLAY"}</KeyValue>
+          <KeyValue label="FIRST SEEN">{formatTime(alert.first_seen ?? alert.timestamp)}</KeyValue>
+          <KeyValue label="LAST SEEN">{formatTime(alert.last_seen ?? alert.emitted_at ?? alert.timestamp)}</KeyValue>
+          <KeyValue label="OCCURRENCE COUNT">{alert.occurrence_count}</KeyValue>
+          <KeyValue label="FLOW ID">{alert.flow_id ?? "Session level"}</KeyValue>
         </div>
       </section>
 
-      {/* 4. Confidence & Acceptance Threshold */}
+      {/* 4. Confidence & Threshold Meter */}
       <section className="inspector__section">
-        <div className="inspector__sec-title font-mono">CALIBRATED CONFIDENCE VS THRESHOLD</div>
-        <div className="confidence-meter-container">
-          <div className="confidence-meter-labels font-mono">
-            <span>Calibrated: <strong>{formatDecimal(confidencePercent, 1)}%</strong></span>
-            {thresholdPercent != null ? (
-              <span>Threshold: <strong>{formatDecimal(thresholdPercent, 1)}%</strong></span>
-            ) : (
-              <span>Threshold: <em>Not defined</em></span>
-            )}
-          </div>
-          <div className="confidence-scale" aria-label="Calibrated confidence vs acceptance threshold">
-            <span
-              style={{
-                width: `${Math.min(100, Math.max(0, confidencePercent))}%`,
-                background: alert.decision === "ACCEPT" ? "var(--landing-emerald)" : alert.decision === "UNKNOWN_SUSPICIOUS" ? "var(--landing-purple)" : "var(--landing-amber)",
-              }}
-            />
-            {thresholdPercent != null ? (
-              <div
-                className="confidence-threshold-marker"
-                style={{ left: `${Math.min(100, Math.max(0, thresholdPercent))}%` }}
-                title={`Acceptance threshold: ${thresholdPercent.toFixed(1)}%`}
-              >
-                <div className="confidence-threshold-label font-mono">THR</div>
-              </div>
-            ) : null}
-          </div>
+        <div className="inspector__sec-title font-mono">CALIBRATED MODEL CONFIDENCE</div>
+        <div className="confidence-meter-labels">
+          <span>Calibrated: <strong>{formatDecimal(confidencePercent)}%</strong></span>
+          {thresholdPercent != null && <span>Gate Threshold: <strong>{formatDecimal(thresholdPercent)}%</strong></span>}
         </div>
-
-        <div className="inspector__keyval-grid">
-          <KeyValue label="RAW MODEL SCORE">
-            {alert.raw_score != null ? `${formatDecimal(alert.raw_score * 100, 1)}%` : "Unavailable"}
-          </KeyValue>
-          <KeyValue label="THREAT CONFIDENCE">
-            {alert.threat_confidence != null ? `${formatDecimal(alert.threat_confidence * 100, 1)}%` : `${formatDecimal(confidencePercent, 1)}%`}
-          </KeyValue>
-          <KeyValue label="OBSERVATION CONFIDENCE">
-            {alert.observation_confidence != null ? `${formatDecimal(alert.observation_confidence * 100, 1)}%` : "Unavailable"}
-          </KeyValue>
-          <KeyValue label="DETECTOR ID">{alert.detector_id}</KeyValue>
+        <div className="confidence-scale" role="meter" aria-valuenow={confidencePercent} aria-valuemin={0} aria-valuemax={100}>
+          <span style={{ width: `${Math.min(confidencePercent, 100)}%` }} />
+          {thresholdPercent != null && (
+            <div
+              className="confidence-threshold-marker"
+              style={{ left: `${Math.min(thresholdPercent, 100)}%` }}
+              title={`Decision threshold: ${formatDecimal(thresholdPercent)}%`}
+            >
+              <span className="confidence-threshold-label font-mono">GATE {formatDecimal(thresholdPercent)}%</span>
+            </div>
+          )}
+        </div>
+        <div className="inspector__keyval-grid" style={{ marginTop: "12px" }}>
+          <KeyValue label="RAW SCORE">{alert.raw_score != null ? formatDecimal(alert.raw_score, 4) : "—"}</KeyValue>
+          <KeyValue label="CLASS THRESHOLD">{alert.class_threshold != null ? formatDecimal(alert.class_threshold, 4) : "—"}</KeyValue>
+          <KeyValue label="THREAT CONFIDENCE">{alert.threat_confidence != null ? `${formatDecimal(alert.threat_confidence * 100)}%` : "—"}</KeyValue>
+          <KeyValue label="OBSERVATION QUALITY">{alert.observation_confidence != null ? `${formatDecimal(alert.observation_confidence * 100)}%` : "—"}</KeyValue>
         </div>
       </section>
 
@@ -207,7 +196,7 @@ export function AlertInspectorModal({ alert, onClose, onChanged, isDrawer = fals
             </ul>
           </div>
         ) : (
-          <div className="inspector__evidence-ok font-mono">✓ No required evidence was reported missing.</div>
+          <div className="inspector__evidence-ok font-mono">No required evidence was reported missing.</div>
         )}
 
         {alert.limitations && alert.limitations.length > 0 ? (
@@ -248,52 +237,45 @@ export function AlertInspectorModal({ alert, onClose, onChanged, isDrawer = fals
             ))}
           </ul>
         ) : (
-          <p className="inspector__empty-p">Capability profile was not provided with this alert.</p>
+          <p className="inspector__empty-p">No capability profile was recorded with this detection.</p>
         )}
       </section>
 
-      {/* 8. Model / Schema / Latency Metadata */}
+      {/* 8. Model & Schema Provenance */}
       <section className="inspector__section">
-        <div className="inspector__sec-title font-mono">PROVENANCE & ENGINE LATENCY</div>
+        <div className="inspector__sec-title font-mono">MODEL & SCHEMA PROVENANCE</div>
         <div className="inspector__keyval-grid">
-          <KeyValue label="MODEL VERSION">{alert.model_version || "Untrained / Heuristic"}</KeyValue>
-          <KeyValue label="FEATURE SCHEMA">{alert.feature_schema_version || "v1.0"}</KeyValue>
-          <KeyValue label="INFERENCE LATENCY">{alert.inference_latency_ms != null ? `${formatDecimal(alert.inference_latency_ms, 2)} ms` : "—"}</KeyValue>
-          <KeyValue label="TOTAL PIPELINE LATENCY">{alert.total_pipeline_latency_ms != null ? `${formatDecimal(alert.total_pipeline_latency_ms, 2)} ms` : "—"}</KeyValue>
+          <KeyValue label="DETECTOR ID">{alert.detector_id}</KeyValue>
+          <KeyValue label="MODEL VERSION">{alert.model_version}</KeyValue>
+          <KeyValue label="SCHEMA VERSION">{alert.feature_schema_version}</KeyValue>
+          <KeyValue label="INFERENCE LATENCY">{formatDecimal(alert.inference_latency_ms, 2)} ms</KeyValue>
+          <KeyValue label="TOTAL PIPELINE LATENCY">{formatDecimal(alert.total_pipeline_latency_ms, 2)} ms</KeyValue>
         </div>
       </section>
 
       {/* 9. Lifecycle Actions */}
       <div className="inspector__actions">
-        {alert.status === "open" ? (
-          <button
-            className="btn-tactile-primary font-mono"
-            onClick={() => updateLifecycle("acknowledge")}
-            disabled={isUpdating}
-          >
-            Acknowledge Alert
-          </button>
-        ) : null}
-        {alert.status !== "closed" ? (
-          <button
-            className="btn-tactile-secondary font-mono"
-            onClick={() => updateLifecycle("close")}
-            disabled={isUpdating}
-          >
-            Close Alert
-          </button>
-        ) : null}
-        {lifecycleMessage ? (
-          <span className="inspector__lifecycle-msg font-mono" role="status">
-            {lifecycleMessage}
-          </span>
-        ) : null}
+        <button
+          className="button button--primary font-sans"
+          disabled={isUpdating || alert.status === "acknowledged"}
+          onClick={() => updateLifecycle("acknowledge")}
+        >
+          {isUpdating ? "Updating..." : "Acknowledge Alert"}
+        </button>
+        <button
+          className="button font-sans"
+          disabled={isUpdating || alert.status === "closed"}
+          onClick={() => updateLifecycle("close")}
+        >
+          Close Alert
+        </button>
+        {lifecycleMessage ? <span className="inspector__lifecycle-msg font-mono">{lifecycleMessage}</span> : null}
       </div>
 
-      {/* 10. Collapsed Raw JSON */}
-      <details className="inspector__raw-json">
-        <summary className="font-mono">▶ View Raw Structured AlertRecord JSON</summary>
-        <pre className="font-mono">{JSON.stringify(alert, null, 2)}</pre>
+      {/* 10. Audit Raw JSON */}
+      <details className="inspector__raw-json font-mono">
+        <summary>Raw AlertRecord JSON</summary>
+        <pre>{JSON.stringify(alert, null, 2)}</pre>
       </details>
     </aside>
   );

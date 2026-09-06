@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { formatBytes, formatDecimal, formatNumber } from "../../runtime";
 import type { useRuntimeTelemetry } from "../../hooks/useRuntimeTelemetry";
 import type { AlertRecord, DetectorStatus } from "../../types";
-import { InspectionPipeline, MetricCard, RadialGauge, StatusBadge, Timeline } from "../Visuals";
+import { InspectionPipeline, MetricCard, RadialGauge, RiskBar, StatusBadge, Timeline } from "../Visuals";
 import { ReplayControl } from "../ReplayControl";
 import { AlertInspectorModal } from "./AlertInspectorModal";
 import { FirstRunGuidance } from "./FirstRunGuidance";
@@ -40,7 +40,7 @@ export function LiveMonitorPage({ runtime, selectedAlert, onSelectAlert }: LiveM
         hasReadyCapture={hasReadyCapture}
       />
 
-      {/* 1. Live ingest metric strip — Fortexa 6 metric cards with BarSparklines & accents */}
+      {/* 1. Live ingest metric strip — Fortexa 6 stat tiles without emojis */}
       <section className="dash-metrics-strip" aria-label="Live ingest telemetry">
         <MetricCard
           label="DATA INSPECTED"
@@ -52,7 +52,7 @@ export function LiveMonitorPage({ runtime, selectedAlert, onSelectAlert }: LiveM
         <MetricCard
           label="PACKETS"
           value={formatNumber(runtime.metrics?.packets ?? 0)}
-          detail={`${formatDecimal(runtime.metrics?.processing_rates.packets_per_second ?? 0)} packets/s`}
+          detail={`${formatDecimal(runtime.metrics?.processing_rates.packets_per_second ?? 0)} pkt/s`}
           history={history.map((p) => p.packetsPerSecond)}
           tone="teal"
         />
@@ -62,7 +62,7 @@ export function LiveMonitorPage({ runtime, selectedAlert, onSelectAlert }: LiveM
           unit="/ sec"
           detail="Frames processed per wall-clock second"
           history={history.map((p) => p.packetsPerSecond)}
-          tone="pink"
+          tone="magenta"
         />
         <MetricCard
           label="FLOWS ANALYSED"
@@ -75,7 +75,7 @@ export function LiveMonitorPage({ runtime, selectedAlert, onSelectAlert }: LiveM
           label="ACTIVE FLOWS"
           value={formatNumber(runtime.status?.active_flows ?? 0)}
           detail="Open bidirectional sessions"
-          tone="purple"
+          tone="gold"
         />
         <MetricCard
           label="THROUGHPUT"
@@ -112,7 +112,7 @@ export function LiveMonitorPage({ runtime, selectedAlert, onSelectAlert }: LiveM
         />
       </section>
 
-      {/* 3. Recent alerts — Fortexa styled table */}
+      {/* 3. Recent alerts — Fortexa styled table with avatars + risk bars */}
       <section className="dash-recent-alerts">
         <CompactAlertTable
           alerts={runtime.alerts}
@@ -136,7 +136,7 @@ export function LiveMonitorPage({ runtime, selectedAlert, onSelectAlert }: LiveM
             onClick={() => setLiveDetail(null)}
             aria-label="Close details"
           >
-            ✕
+            [X]
           </button>
           {liveDetail === "detectors" ? (
             <DetectorSummaryCards detectors={runtime.detectors} activeDetectors={activeDetectors} />
@@ -160,7 +160,7 @@ export function LiveMonitorPage({ runtime, selectedAlert, onSelectAlert }: LiveM
   );
 }
 
-/* ---------- Compact Alert Table (latest 6) ---------- */
+/* ---------- Compact Alert Table — Fortexa Style (Zero Emojis) ---------- */
 function CompactAlertTable({
   alerts,
   selected,
@@ -170,22 +170,23 @@ function CompactAlertTable({
   selected: AlertRecord | null;
   onSelect: (alert: AlertRecord) => void;
 }) {
-  const visible = alerts.slice(-6);
+  const visible = alerts.slice(-8);
+  const avatarVariants = ["", "--teal", "--orange", "--green", "--purple"];
+
   return (
     <section className="panel dash-alert-feed">
       <div className="panel__heading">
         <div>
-          <div className="eyebrow">STANDARDIZED ALERT RECORDS</div>
+          <div className="eyebrow">THREAT INTELLIGENCE</div>
           <h2>Recent alerts</h2>
         </div>
         <span className="muted font-mono">{formatNumber(alerts.length)} records</span>
       </div>
       {alerts.length === 0 ? (
-        <div className="empty-state" style={{ padding: "32px 24px", textAlign: "center" }}>
-          <strong style={{ color: "var(--text-primary)" }}>NO EVIDENCE-BACKED ALERTS</strong>
-          <p style={{ color: "var(--text-muted)", marginTop: "6px" }}>
-            No real detector decision has been emitted. This does not prove the capture is
-            safe—especially if approved detector models are unavailable.
+        <div className="empty-state" style={{ padding: "36px 24px", textAlign: "center" }}>
+          <strong style={{ color: "var(--text-primary)", fontSize: ".9rem" }}>No evidence-backed alerts</strong>
+          <p style={{ color: "var(--text-muted)", marginTop: "6px", fontSize: ".78rem" }}>
+            No evidence-backed alert was emitted; this does not prove the capture is safe.
           </p>
         </div>
       ) : (
@@ -193,25 +194,25 @@ function CompactAlertTable({
           <table>
             <thead>
               <tr>
-                <th>Threat & ID</th>
-                <th>Time</th>
-                <th>Severity</th>
-                <th>Source → Destination</th>
+                <th>Entity</th>
+                <th>Threat class</th>
+                <th>Risk level</th>
+                <th>Last activity</th>
                 <th>Confidence</th>
-                <th>Evidence</th>
-                <th>Action</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {visible.map((alert) => {
-                const toneClass =
-                  alert.severity === "CRITICAL"
-                    ? "row-icon-badge--pink"
-                    : alert.severity === "HIGH"
-                    ? "row-icon-badge--orange"
+              {visible.map((alert, idx) => {
+                const avatarClass = `row-avatar${avatarVariants[idx % avatarVariants.length]}`;
+                const initials = alert.threat_class.slice(0, 2).toUpperCase();
+                const riskLevel: "high" | "medium" | "low" =
+                  alert.severity === "CRITICAL" || alert.severity === "HIGH"
+                    ? "high"
                     : alert.severity === "MEDIUM"
-                    ? "row-icon-badge--purple"
-                    : "row-icon-badge--teal";
+                    ? "medium"
+                    : "low";
+                const confidence = alert.calibrated_confidence * 100;
 
                 return (
                   <tr
@@ -220,56 +221,51 @@ function CompactAlertTable({
                     className={selected?.alert_id === alert.alert_id ? "is-selected" : ""}
                     onClick={() => onSelect(alert)}
                     tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") onSelect(alert);
-                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") onSelect(alert); }}
                   >
+                    {/* Entity — avatar + source IP */}
                     <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span className={`row-icon-badge ${toneClass}`}>
-                          {alert.threat_class.charAt(0)}
-                        </span>
-                        <div>
-                          <strong style={{ color: "var(--text-primary)", display: "block" }}>{alert.threat_class}</strong>
-                          <span className="font-mono" style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>
-                            {alert.alert_id.slice(0, 8)}
-                          </span>
+                      <div className="row-entity">
+                        <div className={avatarClass}>{initials}</div>
+                        <div className="row-entity__text">
+                          <span className="row-entity__name font-mono">{formatEndpoint(alert.source)}</span>
+                          <span className="row-entity__sub">→ {formatEndpoint(alert.destination)}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="font-mono">{formatTime(alert.emitted_at ?? alert.timestamp)}</td>
+                    {/* Threat class */}
                     <td>
-                      <StatusBadge
-                        label={alert.severity}
-                        tone={
-                          alert.severity === "CRITICAL"
-                            ? "danger"
-                            : alert.severity === "HIGH"
-                            ? "warning"
-                            : "neutral"
-                        }
-                      />
+                      <strong style={{ color: "var(--text-primary)", fontSize: ".82rem" }}>{alert.threat_class}</strong>
+                      <span className="font-mono" style={{ color: "var(--text-muted)", fontSize: ".68rem", display: "block", marginTop: "1px" }}>
+                        {alert.alert_id.slice(0, 8)}
+                      </span>
                     </td>
+                    {/* Risk bar */}
                     <td>
-                      <span className="tag-endpoint">{formatEndpoint(alert.source)}</span>
-                      <span style={{ margin: "0 6px", color: "var(--text-muted)" }}>→</span>
-                      <span className="tag-endpoint">{formatEndpoint(alert.destination)}</span>
+                      <RiskBar value={confidence} max={100} width={100} level={riskLevel} />
                     </td>
+                    {/* Last activity */}
+                    <td className="font-mono" style={{ fontSize: ".76rem" }}>
+                      {formatTime(alert.emitted_at ?? alert.timestamp)}
+                    </td>
+                    {/* Confidence % */}
                     <td className="font-mono">
-                      <strong style={{ color: "var(--accent-purple)" }}>
-                        {formatDecimal(alert.calibrated_confidence * 100)}%
+                      <strong style={{ color: riskLevel === "high" ? "var(--accent-magenta)" : "var(--accent-purple)" }}>
+                        {formatDecimal(confidence)}%
                       </strong>
                     </td>
+                    {/* Status badge */}
                     <td>
                       <StatusBadge
-                        label={alert.evidence_quality}
-                        tone={alert.evidence_quality === "STRONG" ? "good" : "warning"}
+                        label={alert.status ?? "open"}
+                        tone={
+                          alert.status === "acknowledged"
+                            ? "warning"
+                            : alert.status === "closed"
+                            ? "neutral"
+                            : "good"
+                        }
                       />
-                    </td>
-                    <td>
-                      <span className="tag-endpoint" style={{ color: "var(--accent-purple)", borderColor: "rgba(139, 92, 246, 0.3)", cursor: "pointer" }}>
-                        Inspect →
-                      </span>
                     </td>
                   </tr>
                 );
@@ -368,9 +364,7 @@ function EvidenceGateSummary({
       </div>
       {latest ? (
         <div className="gate-latest">
-          <strong>
-            {latest.threat_class} candidate
-          </strong>
+          <strong>{latest.threat_class} candidate</strong>
           <span>{formatDecimal(latest.calibrated_confidence * 100)}% calibrated</span>
           <StatusBadge
             label={latest.decision.replaceAll("_", " ")}
@@ -378,7 +372,7 @@ function EvidenceGateSummary({
           />
         </div>
       ) : (
-        <p className="empty-copy">
+        <p className="panel-note">
           No model candidate has reached the Evidence Gate. This is expected while real model
           artifacts are unavailable.
         </p>

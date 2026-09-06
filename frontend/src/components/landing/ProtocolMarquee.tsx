@@ -52,7 +52,16 @@ export function ProtocolMarquee() {
         }}
       />
 
-      <div className="marquee-container">
+      <div
+        className="marquee-container"
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          flexWrap: "nowrap",
+          width: "max-content",
+        }}
+      >
         {items.map((item, i) => (
           <div
             key={i}

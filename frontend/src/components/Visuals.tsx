@@ -12,6 +12,64 @@ export function StatusBadge({ label, tone = "neutral" }: { label: string; tone?:
   );
 }
 
+function MetricChipIcon({ tone }: { tone: string }) {
+  switch (tone) {
+    case "magenta":
+      // Pulse / Rate icon
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      );
+    case "teal":
+      // Packet / Storage cube icon
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+      );
+    case "orange":
+      // Reconstructed flow arrows
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+      );
+    case "gold":
+      // Active sessions / node
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+      );
+    case "pink":
+      // Timer / latency clock
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      );
+    case "purple":
+    default:
+      // Bar chart telemetry icon
+      return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      );
+  }
+}
+
 export function MetricCard({
   label,
   value,
@@ -25,11 +83,15 @@ export function MetricCard({
   detail: string;
   history?: number[];
   unit?: string;
-  tone?: "purple" | "pink" | "teal" | "orange";
+  tone?: "purple" | "magenta" | "teal" | "orange" | "gold" | "pink";
+  icon?: string;
 }) {
   return (
     <article className="metric-card">
       <div>
+        <div className={`metric-card__chip metric-card__chip--${tone}`}>
+          <MetricChipIcon tone={tone} />
+        </div>
         <div className="eyebrow">{label}</div>
         <div className="metric-card__value">
           {value}
@@ -53,7 +115,7 @@ export function BarSparkline({
 }: {
   values: number[];
   label: string;
-  tone?: "purple" | "pink" | "teal" | "orange";
+  tone?: string;
 }) {
   const width = 240;
   const height = 36;
@@ -64,12 +126,17 @@ export function BarSparkline({
 
   const gradientId = `bar-grad-${tone}`;
 
-  const colors = {
-    purple: { start: "#c084fc", end: "#7c3aed", highlight: "#e9d5ff" },
-    pink: { start: "#f472b6", end: "#db2777", highlight: "#fbcfe8" },
-    teal: { start: "#22d3ee", end: "#0891b2", highlight: "#a5f3fc" },
-    orange: { start: "#fb923c", end: "#ea580c", highlight: "#fed7aa" },
-  }[tone];
+  const palette: Record<string, { start: string; end: string; highlight: string }> = {
+    purple:  { start: "#c084fc", end: "#7c3aed", highlight: "#e9d5ff" },
+    magenta: { start: "#f43f5e", end: "#be123c", highlight: "#fecdd3" },
+    pink:    { start: "#f472b6", end: "#db2777", highlight: "#fbcfe8" },
+    teal:    { start: "#22d3ee", end: "#0891b2", highlight: "#a5f3fc" },
+    orange:  { start: "#fb923c", end: "#ea580c", highlight: "#fed7aa" },
+    gold:    { start: "#fbbf24", end: "#d97706", highlight: "#fef3c7" },
+    blue:    { start: "#38bdf8", end: "#0284c7", highlight: "#bae6fd" },
+    green:   { start: "#34d399", end: "#059669", highlight: "#a7f3d0" },
+  };
+  const colors = palette[tone] ?? palette.purple;
 
   return (
     <svg
@@ -108,6 +175,60 @@ export function BarSparkline({
   );
 }
 
+/** Fortexa-style diagonal-striped risk/confidence bar */
+export function RiskBar({
+  value,
+  max = 100,
+  width = 110,
+  level = "medium",
+}: {
+  value: number;
+  max?: number;
+  width?: number;
+  level?: "high" | "medium" | "low" | "neutral";
+}) {
+  const pct = Math.min(Math.max((value / max) * 100, 0), 100);
+  const patternId = `stripe-${level}`;
+
+  const fillColors: Record<string, string> = {
+    high:    "#f72585",
+    medium:  "#9b5de5",
+    low:     "#06b6d4",
+    neutral: "#5a5a80",
+  };
+
+  return (
+    <svg
+      width={width}
+      height={8}
+      viewBox={`0 0 ${width} 8`}
+      aria-label={`Risk: ${Math.round(pct)}%`}
+      style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }}
+    >
+      <defs>
+        <pattern id={patternId} x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+          <rect width="4" height="8" fill={fillColors[level]} />
+          <rect x="4" width="4" height="8" fill={fillColors[level]} fillOpacity="0.55" />
+        </pattern>
+        <clipPath id={`clip-${patternId}`}>
+          <rect x="0" y="0" width={`${pct}%`} height="8" rx="4" />
+        </clipPath>
+      </defs>
+      {/* Track */}
+      <rect x="0" y="0" width={width} height="8" rx="4" fill="rgba(255,255,255,0.06)" />
+      {/* Striped fill */}
+      <rect
+        x="0" y="0"
+        width={`${pct}%`}
+        height="8"
+        rx="4"
+        fill={`url(#${patternId})`}
+        clipPath={`url(#clip-${patternId})`}
+      />
+    </svg>
+  );
+}
+
 export function RadialGauge({
   score,
   label = "Risk Score",
@@ -120,7 +241,6 @@ export function RadialGauge({
   const normalized = Math.min(Math.max(score, 0), 100);
   const radius = (size - 18) / 2;
   const circumference = 2 * Math.PI * radius;
-  // Use a 260 degree arc for speedometer/gauge look
   const strokeDashoffset = circumference - (normalized / 100) * circumference * 0.75;
 
   return (
@@ -128,40 +248,28 @@ export function RadialGauge({
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <defs>
           <linearGradient id="gaugeGradient" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#ec4899" />
-            <stop offset="50%" stopColor="#8b5cf6" />
+            <stop offset="0%" stopColor="#f72585" />
+            <stop offset="50%" stopColor="#9b5de5" />
             <stop offset="100%" stopColor="#06b6d4" />
           </linearGradient>
         </defs>
         <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.08)"
-          strokeWidth="10"
+          cx={size / 2} cy={size / 2} r={radius} fill="none"
+          stroke="rgba(255,255,255,0.07)" strokeWidth="10"
           strokeDasharray={`${circumference * 0.75} ${circumference}`}
-          strokeDashoffset={0}
-          strokeLinecap="round"
+          strokeDashoffset={0} strokeLinecap="round"
           transform={`rotate(135 ${size / 2} ${size / 2})`}
         />
         <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="url(#gaugeGradient)"
-          strokeWidth="10"
+          cx={size / 2} cy={size / 2} r={radius} fill="none"
+          stroke="url(#gaugeGradient)" strokeWidth="10"
           strokeDasharray={`${circumference * 0.75} ${circumference}`}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
+          strokeDashoffset={strokeDashoffset} strokeLinecap="round"
           transform={`rotate(135 ${size / 2} ${size / 2})`}
           style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
       </svg>
-      <div className="radial-gauge__value">
-        {Math.round(normalized)}%
-      </div>
+      <div className="radial-gauge__value">{Math.round(normalized)}%</div>
       <div className="radial-gauge__label">{label}</div>
     </div>
   );
@@ -276,47 +384,25 @@ export function InspectionPipeline({
         <StatusBadge label={stateLabel} tone={replayActive ? "good" : "neutral"} />
       </div>
       <div className="pipeline-flow">
+        <PipelineStep step="01" label="INGEST" state={stateLabel} detail={`${formatDecimal(metrics?.processing_rates.mbps ?? 0)} Mbps`} active={replayActive} />
+        <PipelineStep step="02" label="FLOWS" state={stateLabel} detail={`${formatDecimal(metrics?.processing_rates.flows_per_second ?? 0)} new/s`} active={replayActive} />
+        <PipelineStep step="03" label="FEATURES" state={featureState} detail={`${formatNumber(metrics?.feature_vectors ?? 0)} snapshots`} active={featureState === "OBSERVED"} />
         <PipelineStep
-          step="01"
-          label="INGEST"
-          state={stateLabel}
-          detail={`${formatDecimal(metrics?.processing_rates.mbps ?? 0)} Mbps`}
-          active={replayActive}
-        />
-        <PipelineStep
-          step="02"
-          label="FLOWS"
-          state={stateLabel}
-          detail={`${formatDecimal(metrics?.processing_rates.flows_per_second ?? 0)} new/s`}
-          active={replayActive}
-        />
-        <PipelineStep
-          step="03"
-          label="FEATURES"
-          state={featureState}
-          detail={`${formatNumber(metrics?.feature_vectors ?? 0)} snapshots`}
-          active={featureState === "OBSERVED"}
-        />
-        <PipelineStep
-          step="04"
-          label="DETECT"
+          step="04" label="DETECT"
           state={modelsAvailable ? stateLabel : "UNAVAILABLE"}
           detail={`${formatNumber(metrics?.inference_vectors ?? 0)} model vectors`}
-          active={modelsAvailable}
-          unavailable={!modelsAvailable}
+          active={modelsAvailable} unavailable={!modelsAvailable}
           onClick={() => onOpenDetails("detectors")}
         />
         <PipelineStep
-          step="05"
-          label="EVIDENCE"
+          step="05" label="EVIDENCE"
           state={evidenceState}
           detail={`${formatNumber(metrics?.evidence_decisions ?? 0)} decisions`}
           active={evidenceState === "EVALUATED"}
           onClick={() => onOpenDetails("evidence")}
         />
         <PipelineStep
-          step="06"
-          label="ALERT"
+          step="06" label="ALERT"
           state={(metrics?.alerts ?? 0) > 0 ? "DECISIONS" : "NO DECISIONS"}
           detail={`${formatNumber(metrics?.alerts ?? 0)} alert records`}
           active={(metrics?.alerts ?? 0) > 0}
@@ -328,23 +414,10 @@ export function InspectionPipeline({
 }
 
 function PipelineStep({
-  step,
-  label,
-  state,
-  detail,
-  active = false,
-  unavailable = false,
-  isLast = false,
-  onClick,
+  step, label, state, detail, active = false, unavailable = false, isLast = false, onClick,
 }: {
-  step: string;
-  label: string;
-  state: string;
-  detail: string;
-  active?: boolean;
-  unavailable?: boolean;
-  isLast?: boolean;
-  onClick?: () => void;
+  step: string; label: string; state: string; detail: string;
+  active?: boolean; unavailable?: boolean; isLast?: boolean; onClick?: () => void;
 }) {
   const tone = unavailable ? "neutral" : active ? "good" : "neutral";
 
@@ -368,12 +441,7 @@ function PipelineStep({
   );
 
   return onClick ? (
-    <button
-      className="pipeline-step-btn"
-      onClick={onClick}
-      title={`Click to inspect ${label} model and details`}
-      type="button"
-    >
+    <button className="pipeline-step-btn" onClick={onClick} title={`Click to inspect ${label} model and details`} type="button">
       {content}
     </button>
   ) : (

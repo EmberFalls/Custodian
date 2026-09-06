@@ -119,7 +119,8 @@ export function ThreatSandbox() {
           style={{
             display: "flex",
             gap: "8px",
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
+            overflowX: "auto",
             marginBottom: "28px",
           }}
         >

@@ -480,6 +480,169 @@ function CaptureGateCard() {
 }
 
 /* ──────────────────────────────────────────────
+   Card 5: Local-First SQLite Forensics
+   ─────────────────────────────────────────────── */
+function SqliteForensicsCard() {
+  const [cursor, setCursor] = useState(0);
+
+  const rows = [
+    { table: "alerts",   id: "alrt-0f3a", col: "decision",    val: "ACCEPT",       color: "#86efac" },
+    { table: "flows",    id: "flow-7c12", col: "bytes_total",  val: "142,880",      color: "#c4b5fd" },
+    { table: "captures", id: "cap-b2e1",  col: "sha256",       val: "a3f9…c071",    color: "#7dd3fc" },
+    { table: "flows",    id: "flow-1a55", col: "protocol",     val: "TCP",          color: "#c4b5fd" },
+    { table: "alerts",   id: "alrt-9d44", col: "threat_class", val: "UNKNOWN",      color: "#fcd34d" },
+    { table: "captures", id: "cap-e7f0",  col: "status",       val: "COMPLETED",   color: "#86efac" },
+  ];
+
+  useEffect(() => {
+    const t = setInterval(() => setCursor((c) => (c + 1) % rows.length), 1400);
+    return () => clearInterval(t);
+  }, []);
+
+  const tableColors: Record<string, string> = {
+    alerts:   "rgba(139, 92, 246, 0.14)",
+    flows:    "rgba(14, 165, 201, 0.12)",
+    captures: "rgba(34, 184, 98, 0.10)",
+  };
+  const tableBorders: Record<string, string> = {
+    alerts:   "rgba(139, 92, 246, 0.3)",
+    flows:    "rgba(14, 165, 201, 0.28)",
+    captures: "rgba(34, 184, 98, 0.26)",
+  };
+  const tableText: Record<string, string> = {
+    alerts:   "#c4b5fd",
+    flows:    "#7dd3fc",
+    captures: "#86efac",
+  };
+
+  return (
+    <div className="bento-card">
+      <div style={{ marginBottom: "16px" }}>
+        <h3
+          style={{
+            margin: 0,
+            fontFamily: "'IBM Plex Sans', -apple-system, sans-serif",
+            fontSize: "1.05rem",
+            fontWeight: 500,
+            color: "#ffffff",
+          }}
+        >
+          Local-First SQLite Forensics
+        </h3>
+        <p style={{ margin: "3px 0 0", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "0.8rem", color: "#a1a1aa" }}>
+          All alerts, flows and captures persist to an on-device SQLite store. No cloud upload, no outbound telemetry.
+        </p>
+      </div>
+
+      {/* Live write log */}
+      <div
+        style={{
+          background: "rgba(14, 14, 18, 0.9)",
+          border: "1px solid rgba(255, 255, 255, 0.07)",
+          borderRadius: "8px",
+          padding: "10px",
+          marginBottom: "14px",
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: "0.72rem",
+          overflow: "hidden",
+        }}
+      >
+        {/* column headers */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "80px 90px 1fr 1fr",
+            gap: "8px",
+            paddingBottom: "6px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            marginBottom: "6px",
+            color: "#525270",
+            fontSize: "0.65rem",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+          }}
+        >
+          <span>Table</span>
+          <span>Row ID</span>
+          <span>Column</span>
+          <span>Value</span>
+        </div>
+
+        {rows.map((r, i) => (
+          <div
+            key={i}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "80px 90px 1fr 1fr",
+              gap: "8px",
+              padding: "5px 0",
+              borderBottom: "1px solid rgba(255,255,255,0.03)",
+              opacity: i === cursor ? 1 : i === (cursor + rows.length - 1) % rows.length ? 0.55 : 0.22,
+              transition: "opacity 0.4s ease",
+              alignItems: "center",
+            }}
+          >
+            <span>
+              <span
+                style={{
+                  background: tableColors[r.table],
+                  border: `1px solid ${tableBorders[r.table]}`,
+                  color: tableText[r.table],
+                  padding: "1px 5px",
+                  borderRadius: "3px",
+                  fontSize: "0.66rem",
+                }}
+              >
+                {r.table}
+              </span>
+            </span>
+            <span style={{ color: "#71717a" }}>{r.id}</span>
+            <span style={{ color: "#a1a1aa" }}>{r.col}</span>
+            <span style={{ color: r.color, fontWeight: 600 }}>{r.val}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Storage stats */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "8px",
+        }}
+      >
+        {[
+          { label: "Storage Location", value: "runtime/", sub: "local disk only" },
+          { label: "Retention",        value: "Session",  sub: "in-memory ring" },
+          { label: "Export Formats",   value: "JSON / CSV", sub: "anonymisable" },
+        ].map((s) => (
+          <div
+            key={s.label}
+            style={{
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: "6px",
+              padding: "8px 10px",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem", color: "#ededf5", fontWeight: 600 }}>
+              {s.value}
+            </div>
+            <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "0.65rem", color: "#525270", marginTop: "2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              {s.label}
+            </div>
+            <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "0.68rem", color: "#71717a", marginTop: "1px" }}>
+              {s.sub}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
    BentoFeatures Section Assembler
    ─────────────────────────────────────────────── */
 export function BentoFeatures() {
@@ -547,6 +710,7 @@ export function BentoFeatures() {
           <DualConfidenceCard />
           <DnsTlsCard />
           <CaptureGateCard />
+          <SqliteForensicsCard />
         </div>
       </div>
     </section>
