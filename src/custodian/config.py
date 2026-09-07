@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -95,6 +96,18 @@ class SeveritySettings(SettingsModel):
     rules: dict[str, str] = Field(default_factory=dict)
 
 
+class ModelVariant(SettingsModel):
+    enabled: bool = False
+    trusted: bool = False
+    artifact_path: Path | None = None
+
+    @model_validator(mode="after")
+    def validate_trust_boundary(self) -> ModelVariant:
+        if self.trusted and (not self.enabled or self.artifact_path is None):
+            raise ValueError("a model variant cannot be trusted without an enabled artifact")
+        return self
+
+
 class ModelEntry(SettingsModel):
     enabled: bool
     trusted: bool = False
@@ -102,6 +115,7 @@ class ModelEntry(SettingsModel):
     artifact_path: Path | None = None
     calibrator_path: Path | None = None
     thresholds_path: Path | None = None
+    variants: dict[str, ModelVariant] = Field(default_factory=dict)
 
 
 class ModelsSettings(SettingsModel):
@@ -122,6 +136,9 @@ class ModelsSettings(SettingsModel):
                 raise ValueError(
                     f"{family.value} cannot be trusted unless it is enabled with an artifact path"
                 )
+            for name in entry.variants:
+                if not name or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789_" for character in name):
+                    raise ValueError(f"invalid {family.value} model variant name: {name!r}")
         return self
 
 
@@ -159,12 +176,16 @@ def load_config_bundle(config_dir: str | Path) -> ConfigBundle:
     """Load and validate all prototype configuration files from one directory."""
 
     directory = Path(config_dir)
+    models_override = os.environ.get("CUSTODIAN_MODELS_CONFIG")
+    models_path = Path(models_override) if models_override else directory / "models.yaml"
+    if models_override and not models_path.is_absolute():
+        models_path = directory / models_path
     bundle = ConfigBundle(
         defaults=_validate_file(directory / "default.yaml", DefaultSettings),
         replay=_validate_file(directory / "replay.yaml", ReplaySettings),
         evidence=_validate_file(directory / "evidence.yaml", EvidenceSettings),
         severity=_validate_file(directory / "severity.yaml", SeveritySettings),
-        models=_validate_file(directory / "models.yaml", ModelsSettings),
+        models=_validate_file(models_path, ModelsSettings),
         storage=_validate_file(directory / "storage.yaml", StorageSettings),
     )
     root = directory.resolve().parent
@@ -178,6 +199,12 @@ def load_config_bundle(config_dir: str | Path) -> ConfigBundle:
                 "artifact_path": resolved(entry.artifact_path),
                 "calibrator_path": resolved(entry.calibrator_path),
                 "thresholds_path": resolved(entry.thresholds_path),
+                "variants": {
+                    name: variant.model_copy(
+                        update={"artifact_path": resolved(variant.artifact_path)}
+                    )
+                    for name, variant in entry.variants.items()
+                },
             }
         )
         for family, entry in bundle.models.models.items()

@@ -12,7 +12,9 @@ The reusable hosted-Colab environment workflow is documented in [docs/colab-trai
 - API and dashboard are localhost-only.
 - Offline capture replay means reading a file into the local analysis pipeline; it never transmits captured packets.
 - Model artifacts are untrusted by default and are not deserialized during startup.
-- DNS and encrypted-session models remain unavailable until approved data, isolated training, calibration, and artifact validation exist.
+- The local showcase override can load separately stored, hash-verified Behaviour and TLS/QUIC candidates without weakening the repository default.
+- The DNS-tunnelling candidate can be loaded through the explicit local showcase override.
+- DNS DGA has a safety-gated HGB preparation/training/integration path and a locally exported DRIFT26DSN MVP candidate; it remains disabled by default and is enabled only by the operator-approved local demo configuration.
 - Model training and passive live-interface testing are intentionally deferred until the user completes and approves the documented isolation checklist.
 
 ## Run the application
@@ -37,6 +39,29 @@ Open <http://127.0.0.1:5173/>. Put only an authorized `.cap`, `.pcap`, or `.pcap
 
 Stop each server with `Ctrl+C` in the terminal that started it. PyCharm needs no special web setting: select `E:\Python\python.exe` as the interpreter and use the repository root as the backend working directory.
 
+### Local showcase with the verified model candidates
+
+The model archives and `configs/models.demo.local.yaml` are intentionally ignored by Git. On the prepared showcase laptop, start the backend with the isolated project environment and explicit local override:
+
+```powershell
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
+$env:CUSTODIAN_MODELS_CONFIG = 'models.demo.local.yaml'
+$env:LOKY_MAX_CPU_COUNT = '4'
+& '.\.venv\Scripts\python.exe' -m uvicorn custodian.api.app:app --host 127.0.0.1 --port 8000
+```
+
+Start the frontend in a second PowerShell terminal using the normal command above. The Behaviour, DNS tunnelling, DNS DGA, and TLS/QUIC detector packages should all report `READY`. This override is for the localhost-only MVP demonstration and is not an external-validation or production-readiness claim.
+
+Before starting the showcase, run the lightweight readiness check. It does not open a capture, train a model, or access the network:
+
+```powershell
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
+$env:CUSTODIAN_MODELS_CONFIG = 'models.demo.local.yaml'
+& '.\.venv\Scripts\python.exe' -m custodian.cli demo-check
+```
+
+The command exits successfully only when the pinned demo dependencies match and all four configured detector packages load as `READY`. Its `artifact_serialization_versions` and `artifact_version_warning_count` fields also report known serialization-version differences instead of hiding them; these are compatibility debt for later artifact re-export, even when the locally verified packages load successfully.
+
 ## Install and verify application dependencies
 
 Dependency installation requires temporary internet access. Do it only in an environment you approve. Dataset handling and training remain separate and offline.
@@ -46,6 +71,14 @@ Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
 & 'E:\Python\python.exe' -m pip install -e '.[dev]'
 Set-Location frontend
 & 'E:\Node\npm.cmd' ci
+```
+
+For the model-compatible project environment used by the showcase:
+
+```powershell
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
+& 'E:\Python\python.exe' -m venv .venv
+& '.\.venv\Scripts\python.exe' -m pip install -c constraints-demo.txt -e '.[dev]'
 ```
 
 Verification does not train a model:

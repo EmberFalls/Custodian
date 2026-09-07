@@ -88,12 +88,13 @@ class CustodianEngine:
         self.mode = config.replay.mode
         self.capture_id: str | None = None
 
-    def _package(self, family: str):
-        entry = self.config.models.models[family]
+    def _package(self, family: str, entry=None, *, detector_id: str | None = None):
+        entry = entry or self.config.models.models[family]
+        error_key = detector_id or family
         if not entry.enabled or entry.artifact_path is None:
             return None
         if not entry.trusted:
-            self._load_errors[family] = (
+            self._load_errors[error_key] = (
                 "Artifact loading is blocked until its provenance and isolated-VM workflow "
                 "are explicitly approved (set trusted: true only after that review)"
             )
@@ -102,27 +103,67 @@ class CustodianEngine:
             package = load_model_package(entry.artifact_path)
             if package.feature_schema.get("family") != family:
                 raise ValueError("configured model belongs to a different feature family")
+            artifact_variant = package.manifest.get("detector_variant")
+            expected_variant = error_key.removeprefix(f"{family}_") if error_key != family else None
+            if expected_variant and artifact_variant != expected_variant:
+                raise ValueError(
+                    f"configured {error_key} artifact does not declare detector_variant={expected_variant!r}"
+                )
             return package
         except Exception as exc:
             # A missing/broken optional artifact must not prevent parser-only replay.
-            self._load_errors[family] = str(exc)
+            self._load_errors[error_key] = str(exc)
             return None
 
     def _load_detectors(self):
-        return {
+        primary_entries = self.config.models.models
+        detectors = {
             "behaviour": BehaviourDetector(self._package("behaviour")),
             "dns": DNSDetector(self._package("dns")),
             "tls_quic": TLSQUICDetector(self._package("tls_quic")),
         }
+        self._detector_families = {
+            "behaviour": "behaviour",
+            "dns": "dns",
+            "tls_quic": "tls_quic",
+        }
+        self._detector_entries = {name: primary_entries[name] for name in detectors}
+        for family, family_entry in primary_entries.items():
+            family_name = family.value
+            for variant_name, variant in family_entry.variants.items():
+                detector_id = f"{family_name}_{variant_name}"
+                package = self._package(family_name, variant, detector_id=detector_id)
+                if family_name == "dns":
+                    detector = DNSDetector(package, detector_id=detector_id)
+                elif family_name == "behaviour":
+                    detector = BehaviourDetector(package)
+                    detector.detector_id = detector_id
+                else:
+                    detector = TLSQUICDetector(package)
+                    detector.detector_id = detector_id
+                detectors[detector_id] = detector
+                self._detector_families[detector_id] = family_name
+                self._detector_entries[detector_id] = variant
+        return detectors
+
+    def _detector_ids(self, family: str) -> list[str]:
+        return [
+            detector_id
+            for detector_id, detector_family in self._detector_families.items()
+            if detector_family == family
+        ]
 
     def detector_status(self) -> list[dict]:
         statuses = []
         for name, detector in self.detectors.items():
             package = detector.package
-            entry = self.config.models.models[name]
+            family = self._detector_families[name]
+            entry = self._detector_entries[name]
             statuses.append(
                 {
                     "id": name,
+                    "family": family,
+                    "variant": name.removeprefix(f"{family}_") if name != family else None,
                     "enabled": detector.available,
                     "status": "READY" if detector.available else "UNAVAILABLE",
                     "reason": None
@@ -136,10 +177,12 @@ class CustodianEngine:
                     "model_version": package.model_version if package else None,
                     "schema_version": package.feature_schema["schema_version"]
                     if package
-                    else f"{name}.v1",
+                        else f"{family}.v1",
                     "classes": list(package.classes) if package else [],
                     "artifact_trusted": entry.trusted,
-                    "required_evidence": list(self.capability_router.REQUIRED[FeatureFamily(name)]),
+                    "required_evidence": list(
+                        self.capability_router.REQUIRED[FeatureFamily(family)]
+                    ),
                     "available_evidence": sorted(self._available_capabilities),
                     "distribution_support": (
                         "available"
@@ -181,28 +224,36 @@ class CustodianEngine:
         self._available_capabilities.update(
             name for name, available in capabilities.model_dump().items() if available
         )
-        vectors = [("behaviour", self.behaviour_features.extract(flow, state, capabilities))]
+        vectors = [
+            (detector_id, self.behaviour_features.extract(flow, state, capabilities))
+            for detector_id in self._detector_ids("behaviour")
+        ]
         packet = self._last_packets.get(flow.flow_id)
-        if self.detectors["dns"].available and packet is not None and flow.dns_metadata:
-            vectors.append(
-                (
-                    "dns",
-                    self.dns_features.extract(
-                        packet.model_copy(update={"dns_metadata": flow.dns_metadata}),
-                        state,
-                        capabilities,
-                    ),
-                )
+        dns_detector_ids = self._detector_ids("dns")
+        if (
+            any(self.detectors[detector_id].available for detector_id in dns_detector_ids)
+            and packet is not None
+            and flow.dns_metadata
+        ):
+            dns_vector = self.dns_features.extract(
+                packet.model_copy(update={"dns_metadata": flow.dns_metadata}),
+                state,
+                capabilities,
             )
-        if self.detectors["tls_quic"].available and (flow.tls_metadata or flow.quic_metadata):
-            vectors.append(("tls_quic", self.tls_features.extract(flow, state, capabilities)))
+            vectors.extend((detector_id, dns_vector) for detector_id in dns_detector_ids)
+        tls_detector_ids = self._detector_ids("tls_quic")
+        if any(self.detectors[detector_id].available for detector_id in tls_detector_ids) and (
+            flow.tls_metadata or flow.quic_metadata
+        ):
+            tls_vector = self.tls_features.extract(flow, state, capabilities)
+            vectors.extend((detector_id, tls_vector) for detector_id in tls_detector_ids)
         self.metrics.feature_vectors += len(vectors)
         self.metrics.record_latency("features", (perf_counter() - started) * 1000)
         emitted = []
-        for family, vector in vectors:
-            if not self.detectors[family].available:
+        for detector_id, vector in vectors:
+            if not self.detectors[detector_id].available:
                 continue
-            if family == "behaviour" and flow.protocol not in {
+            if self._detector_families[detector_id] == "behaviour" and flow.protocol not in {
                 TransportProtocol.TCP,
                 TransportProtocol.UDP,
             }:
@@ -220,7 +271,7 @@ class CustodianEngine:
                     }
                 )
                 continue
-            self._pending[family].append(
+            self._pending[detector_id].append(
                 PendingInference(
                     vector,
                     flow,
@@ -230,8 +281,8 @@ class CustodianEngine:
                     started,
                 )
             )
-            if len(self._pending[family]) >= self.config.defaults.inference_batch_size:
-                emitted.extend(self._flush_family(family))
+            if len(self._pending[detector_id]) >= self.config.defaults.inference_batch_size:
+                emitted.extend(self._flush_family(detector_id))
         return emitted
 
     def _flush_family(self, family: str) -> list:

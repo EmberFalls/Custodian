@@ -6,8 +6,18 @@ __pycache__/
 .test-tmp-*/
 .ruff_cache/
 .mypy_cache/
+.pyre/
+.pytype/
+.hypothesis/
+.tox/
+.nox/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+build/
+dist/
+*.whl
 
 # Virtual environments
 .venv/
@@ -19,12 +29,30 @@ venv/
 .ipynb_checkpoints/
 .DS_Store
 Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*.tmp
+*.temp
+*.bak
+*~
 
 # Local environment and runtime state
 .env
+.env.*
+!.env.example
+configs/*.local.yaml
 *.log
+*.db
+*.db-*
 *.sqlite
+*.sqlite-*
 *.sqlite3
+*.sqlite3-*
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Data and generated artifacts
 data/raw/*
@@ -44,7 +72,26 @@ reports/benchmarks/*
 runtime/*
 !runtime/.gitkeep
 
+# Raw captures, serialized models, and generated archives stay local even if
+# accidentally placed outside their designated ignored directories.
+*.pcap
+*.pcapng
+*.cap
+*.parquet
+*.joblib
+*.pkl
+*.pickle
+*.onnx
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
 # Frontend dependencies and builds
 frontend/node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo
+frontend/.vite/
+frontend/coverage/
+frontend/.eslintcache

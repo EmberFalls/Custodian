@@ -89,7 +89,9 @@ export interface Diagnostics {
 }
 
 export interface DetectorStatus {
-  id: "behaviour" | "dns" | "tls_quic";
+  id: string;
+  family?: "behaviour" | "dns" | "tls_quic";
+  variant?: string | null;
   enabled: boolean;
   reason: string | null;
   status: "READY" | "DEGRADED" | "UNAVAILABLE";

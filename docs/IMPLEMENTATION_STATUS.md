@@ -20,10 +20,11 @@
 - Versioned localhost API, stable validation errors with correlation IDs, bounded queries, capture browser, flows, alerts, diagnostics, readiness, host timeline, and resumable application events.
 - Responsive dashboard with validated capture selection, replay/seek controls, measured telemetry, filterable/sortable color-and-text alert table, alert inspector/lifecycle, host evidence timeline, detector readiness, input-adapter diagnostics, and reconnect/resynchronization behavior.
 - Stable local CLI whose training, dataset preparation, and live-capture commands remain explicitly gated.
+- DRIFT26DSN DGA preparation and HGB training path with shared DNS lexical features, whole-family held-out groups, explicit runtime decision policy, hashed artifact export, and optional parallel DNS detector configuration.
 
 ## Deliberately not activated
 
-- Dataset acquisition, preparation, training, calibration, evaluation, and model approval.
+- Independent external model evaluation and final production approval. A real DRIFT26DSN DGA candidate and measured internal results now exist locally, but held-out-family DGA recall remains weak and the package is an MVP candidate rather than a production-approved detector.
 - Deserialization of the existing local behavior artifact, whose trust setting remains `false`.
 - DNS or encrypted-session trained artifacts and any claimed detection metrics.
 - Live network capture or interface access.

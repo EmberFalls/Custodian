@@ -21,6 +21,43 @@ def _query(packet: PacketObservation) -> dict | None:
     return None
 
 
+def normalize_dns_name(value: object) -> str:
+    """Normalize a visible DNS name identically for training and runtime."""
+
+    if not isinstance(value, str):
+        raise ValueError("domain must be a string")
+    domain = value.strip().lower().rstrip(".")
+    if not domain:
+        raise ValueError("domain must not be empty")
+    return domain
+
+
+def dns_lexical_values(domain: str) -> dict[str, int | float]:
+    """Return the runtime DNS lexical feature definitions for one normalized name."""
+
+    normalized = normalize_dns_name(domain)
+    labels = normalized.split(".")
+    characters = list(normalized.replace(".", ""))
+    counts = Counter(characters)
+    values: dict[str, int | float] = {
+        "domain_length": len(normalized),
+        "subdomain_count": max(len(labels) - 2, 0),
+        "mean_label_length": sum(len(label) for label in labels) / len(labels),
+        "character_entropy": shannon_entropy(characters),
+        "digit_ratio": sum(character.isdigit() for character in characters) / len(characters),
+        "letter_ratio": sum(character.isalpha() for character in characters) / len(characters),
+        "hyphen_ratio": characters.count("-") / len(characters),
+        "repeated_character_ratio": (
+            sum(count for count in counts.values() if count > 1) / len(characters)
+        ),
+    }
+    buckets = [0] * DNSFeatureExtractor.NGRAM_BUCKETS
+    for first, second in zip(normalized, normalized[1:], strict=False):
+        buckets[stable_bucket(first + second, DNSFeatureExtractor.NGRAM_BUCKETS)] += 1
+    values.update({f"bigram_bucket_{index}": count for index, count in enumerate(buckets)})
+    return values
+
+
 class DNSFeatureExtractor:
     """Create DNS features while explicitly marking hidden query text unavailable."""
 
@@ -64,29 +101,22 @@ class DNSFeatureExtractor:
         or using source-only engineered columns that the runtime cannot reproduce.
         """
 
-        domain = domain.lower() if isinstance(domain, str) and domain else None
-        labels = domain.split(".") if domain else []
-        characters = list(domain.replace(".", "")) if domain else []
-        counts = Counter(characters)
+        domain = normalize_dns_name(domain) if isinstance(domain, str) and domain.strip() else None
+        lexical = dns_lexical_values(domain) if domain else {}
         values: dict[str, int | float | None] = {
-            "domain_length": len(domain) if domain else None,
-            "subdomain_count": max(len(labels) - 2, 0) if domain else None,
-            "mean_label_length": (sum(len(label) for label in labels) / len(labels))
-            if labels
-            else None,
-            "character_entropy": shannon_entropy(characters) if domain else None,
-            "digit_ratio": (sum(character.isdigit() for character in characters) / len(characters))
-            if characters
-            else None,
-            "letter_ratio": (sum(character.isalpha() for character in characters) / len(characters))
-            if characters
-            else None,
-            "hyphen_ratio": (characters.count("-") / len(characters)) if characters else None,
-            "repeated_character_ratio": (
-                sum(count for count in counts.values() if count > 1) / len(characters)
-            )
-            if characters
-            else None,
+            **{
+                name: lexical.get(name)
+                for name in (
+                    "domain_length",
+                    "subdomain_count",
+                    "mean_label_length",
+                    "character_entropy",
+                    "digit_ratio",
+                    "letter_ratio",
+                    "hyphen_ratio",
+                    "repeated_character_ratio",
+                )
+            },
             "query_type": query_type,
             "query_frequency": recent_domains.count(domain) if domain else None,
             "unique_domain_ratio": len(set(recent_domains)) / max(len(recent_domains), 1)
@@ -94,12 +124,7 @@ class DNSFeatureExtractor:
             else None,
         }
         for bucket in range(self.NGRAM_BUCKETS):
-            values[f"bigram_bucket_{bucket}"] = None if not domain else 0
-        if domain:
-            for first, second in zip(domain, domain[1:], strict=False):
-                bucket = stable_bucket(first + second, self.NGRAM_BUCKETS)
-                key = f"bigram_bucket_{bucket}"
-                values[key] = int(values[key] or 0) + 1
+            values[f"bigram_bucket_{bucket}"] = lexical.get(f"bigram_bucket_{bucket}")
         availability = {}
         for key in values:
             if key == "query_type":

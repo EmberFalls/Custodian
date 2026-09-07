@@ -262,8 +262,9 @@ export function GlobalHeader({
         <div className="dash-banner dash-banner--warning" role="alert">
           <span className="dash-banner__icon font-mono">[*]</span>
           <div>
-            <strong>Passive runtime degraded.</strong>{" "}
-            Model checks or runtime components are reporting partial capability.
+            <strong>Passive runtime partially ready.</strong>{" "}
+            {runtime.detectors.filter((detector) => detector.enabled).length} of {runtime.detectors.length}{" "}
+            detector families are loaded; unavailable families remain clearly marked.
           </div>
         </div>
       ) : null}

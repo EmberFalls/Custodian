@@ -33,6 +33,25 @@ class LoadedModelPackage:
     def model_version(self) -> str:
         return str(self.manifest.get("model_version", self.directory.name))
 
+    def _decision_index(self, probabilities: np.ndarray) -> int:
+        """Apply the artifact's declared evaluation-time decision rule at runtime."""
+
+        policy = self.manifest.get("decision_policy", {"strategy": "argmax"})
+        strategy = policy.get("strategy", "argmax")
+        argmax_index = int(np.argmax(probabilities))
+        if strategy == "argmax":
+            return argmax_index
+        positive = str(policy["positive_class"])
+        negative = str(policy["negative_class"])
+        positive_index = self.classes.index(positive)
+        negative_index = self.classes.index(negative)
+        above_threshold = probabilities[positive_index] >= self.thresholds[positive]
+        if strategy == "positive_threshold":
+            return positive_index if above_threshold else negative_index
+        if strategy == "argmax_and_threshold":
+            return positive_index if argmax_index == positive_index and above_threshold else negative_index
+        raise ValueError(f"unsupported model decision strategy: {strategy!r}")
+
     def predict_batch(self, vectors: list[FeatureVector]) -> list[tuple]:
         if not vectors:
             return []
@@ -66,7 +85,7 @@ class LoadedModelPackage:
         elapsed_per_vector = (perf_counter() - started) * 1000 / len(vectors)
         results = []
         for raw_row, row in zip(raw, calibrated, strict=True):
-            index = int(np.argmax(row))
+            index = self._decision_index(row)
             results.append(
                 (
                     self.classes[index],
@@ -186,6 +205,21 @@ def load_model_package(path: str | Path) -> LoadedModelPackage:
         value = float(thresholds[name])
         if not math.isfinite(value) or not 0 <= value <= 1:
             raise ValueError(f"invalid class threshold for {name}")
+    decision_policy = manifest.get("decision_policy", {"strategy": "argmax"})
+    if not isinstance(decision_policy, dict):
+        raise ValueError("model decision_policy must be an object")
+    strategy = decision_policy.get("strategy", "argmax")
+    if strategy not in {"argmax", "positive_threshold", "argmax_and_threshold"}:
+        raise ValueError(f"unsupported model decision strategy: {strategy!r}")
+    if strategy != "argmax":
+        positive = decision_policy.get("positive_class")
+        negative = decision_policy.get("negative_class")
+        if len(classes) != 2 or positive not in classes or negative not in classes:
+            raise ValueError(
+                "threshold decision policies require two distinct artifact classes"
+            )
+        if positive == negative:
+            raise ValueError("positive and negative decision classes must differ")
     return LoadedModelPackage(
         directory,
         estimator,

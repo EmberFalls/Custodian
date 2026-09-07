@@ -1,6 +1,7 @@
 import pandas as pd
+import pytest
 
-from training.splits import complete_class_grouped_splits
+from training.splits import column_splits, complete_class_grouped_splits
 
 
 def test_complete_group_split_balances_labels_without_group_overlap() -> None:
@@ -44,3 +45,17 @@ def test_small_dataset_assigns_two_groups_to_each_held_out_role() -> None:
         set(part["label"]) == {"BENIGN_DNS", "DNS_TUNNEL"}
         for part in (splits.train, splits.validation, splits.calibration, splits.test)
     )
+
+
+def test_column_splits_reject_group_leakage() -> None:
+    frame = pd.DataFrame(
+        [
+            {"group_id": "shared", "label": "DGA", "split": "train"},
+            {"group_id": "shared", "label": "DGA", "split": "test"},
+            {"group_id": "validation", "label": "BENIGN", "split": "validation"},
+            {"group_id": "calibration", "label": "BENIGN", "split": "calibration"},
+        ]
+    )
+
+    with pytest.raises(ValueError, match="group leakage"):
+        column_splits(frame)

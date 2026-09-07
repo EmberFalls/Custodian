@@ -5,7 +5,7 @@ from datetime import timedelta
 from custodian.core.enums import TransportProtocol
 from custodian.core.schemas import CapabilityProfile, PacketObservation
 from custodian.features.behaviour import BehaviourFeatureExtractor, periodicity_score
-from custodian.features.dns import DNSFeatureExtractor
+from custodian.features.dns import DNSFeatureExtractor, dns_lexical_values
 from custodian.features.tls_quic import TLSQUICFeatureExtractor
 from custodian.flow.manager import FlowManager
 from custodian.observation.capabilities import build_capability_profile
@@ -116,6 +116,23 @@ def test_dns_metadata_boundary_can_mark_temporal_history_unavailable(observed_at
     assert vector.availability["query_frequency"] is False
     assert vector.availability["unique_domain_ratio"] is False
     assert vector.values["query_frequency"] is None
+
+
+def test_dns_training_and_runtime_share_normalization_and_lexical_values(observed_at) -> None:
+    capabilities = CapabilityProfile(has_dns_query_name=True)
+    vector = DNSFeatureExtractor().extract_metadata(
+        observed_at=observed_at,
+        source_id="source",
+        domain="  Qx7K9.Example.COM. ",
+        query_type=None,
+        recent_domains=(),
+        window_seconds=60,
+        capabilities=capabilities,
+        recent_history_available=False,
+    )
+
+    expected = dns_lexical_values("qx7k9.example.com")
+    assert all(vector.values[name] == value for name, value in expected.items())
 
 
 def test_tls_features_do_not_require_decrypted_payload(observed_at) -> None:

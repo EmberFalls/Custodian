@@ -45,6 +45,30 @@ def grouped_splits(frame: pd.DataFrame, random_state: int = 42) -> DatasetSplits
     return DatasetSplits(train=train, validation=validation, calibration=calibration, test=test)
 
 
+def column_splits(frame: pd.DataFrame, split_column: str = "split") -> DatasetSplits:
+    """Load precomputed, auditable split roles from a prepared feature table."""
+
+    if split_column not in frame.columns:
+        raise ValueError(f"prepared table is missing split column: {split_column!r}")
+    required = ("train", "validation", "calibration", "test")
+    unexpected = sorted(set(frame[split_column].dropna()) - set(required))
+    if unexpected:
+        raise ValueError(f"prepared table contains unknown split roles: {unexpected}")
+    roles = {role: frame.loc[frame[split_column] == role].copy() for role in required}
+    empty = [role for role, part in roles.items() if part.empty]
+    if empty:
+        raise ValueError(f"one or more required splits are empty: {empty}")
+    if "group_id" in frame.columns:
+        group_sets = [set(roles[role]["group_id"]) for role in required]
+        if any(
+            group_sets[left] & group_sets[right]
+            for left in range(4)
+            for right in range(left + 1, 4)
+        ):
+            raise ValueError("precomputed split contains group leakage")
+    return DatasetSplits(**roles)
+
+
 def complete_class_grouped_splits(
     frame: pd.DataFrame,
     seed: int = 42,

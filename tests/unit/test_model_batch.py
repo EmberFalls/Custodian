@@ -25,6 +25,17 @@ class StubCalibrator(MulticlassSigmoidCalibrator):
         return np.array([[0.1, 0.7, 0.1, 0.1], [0.1, 0.1, 0.2, 0.6]])
 
 
+class BinaryEstimator:
+    def predict_proba(self, matrix):
+        assert list(matrix.columns) == ["feature__domain_length"]
+        return np.array([[0.55, 0.45]])
+
+
+class BinaryCalibrator:
+    def predict_proba(self, matrix):
+        return np.array([[0.55, 0.45]])
+
+
 def test_batch_preserves_row_order_and_raw_calibrated_class_alignment():
     vectors = []
     for value in (12, 34):
@@ -59,3 +70,38 @@ def test_batch_preserves_row_order_and_raw_calibrated_class_alignment():
     assert second[:3] == ("BOT_OR_C2_LIKE", 0.1, 0.6)
     assert sum(first[3].values()) == pytest.approx(1)
     assert package.predict_batch([]) == []
+
+
+def test_positive_threshold_policy_matches_dga_evaluation_below_argmax() -> None:
+    vector = FeatureVector(
+        family=FeatureFamily.DNS,
+        schema_version="dns.v1",
+        entity_id="dns:source",
+        window_id="window",
+        values={"domain_length": 20, "character_entropy": 3.5},
+        availability={"domain_length": True, "character_entropy": True},
+    )
+    package = LoadedModelPackage(
+        Path("TEST_ONLY_NOT_AN_ARTIFACT"),
+        BinaryEstimator(),
+        BinaryCalibrator(),
+        {
+            "family": "dns",
+            "schema_version": "dns.v1",
+            "columns": ["feature__domain_length"],
+            "allow_runtime_feature_superset": True,
+        },
+        ("BENIGN", "DGA"),
+        {"BENIGN": 0.5, "DGA": 0.4},
+        {
+            "decision_policy": {
+                "strategy": "positive_threshold",
+                "positive_class": "DGA",
+                "negative_class": "BENIGN",
+            }
+        },
+    )
+
+    prediction = package.predict(vector)
+    assert prediction[0] == "DGA"
+    assert prediction[2] == pytest.approx(0.45)

@@ -1,6 +1,10 @@
 """CLI safety gates are testable without starting servers or touching datasets."""
 
-from custodian.cli import main
+from pathlib import Path
+
+import pytest
+
+from custodian.cli import _demo_constraints, main
 
 
 def test_safety_status_is_local_and_gated(capsys) -> None:
@@ -11,5 +15,53 @@ def test_safety_status_is_local_and_gated(capsys) -> None:
 
 
 def test_training_command_is_gated(capsys) -> None:
-    assert main(["train"]) == 2
-    assert "isolated VM" in capsys.readouterr().out
+    assert (
+        main(
+            [
+                "train",
+                "dga",
+                "--input-path",
+                "missing.parquet",
+                "--output-dir",
+                "model_artifacts/test-dga",
+            ]
+        )
+        == 2
+    )
+    assert "checklist" in capsys.readouterr().out
+
+
+def test_training_command_requires_family() -> None:
+    with pytest.raises(SystemExit):
+        main(["train"])
+
+
+def test_dga_preparation_is_gated_before_source_access(capsys) -> None:
+    assert (
+        main(
+            [
+                "prepare-data",
+                "--family",
+                "dga",
+                "--data-dir",
+                "missing",
+                "--output",
+                "missing.parquet",
+            ]
+        )
+        == 2
+    )
+    assert "checklist" in capsys.readouterr().out
+
+
+def test_demo_constraints_reads_exact_pins(tmp_path: Path) -> None:
+    constraints = tmp_path / "constraints.txt"
+    constraints.write_text(
+        "# verified runtime\nscikit-learn==1.7.2\n\njoblib==1.5.2\n",
+        encoding="utf-8",
+    )
+
+    assert _demo_constraints(constraints) == {
+        "scikit-learn": "1.7.2",
+        "joblib": "1.5.2",
+    }

@@ -6,7 +6,7 @@ const coverage = [
   ["C2", "behaviour", "Recurrence + periodicity"],
   ["Recon", "behaviour", "Destination + port diversity"],
   ["Exfiltration", "behaviour", "Directional volume + comparison window"],
-  ["DGA", "dns", "DNS lexical features"],
+  ["DGA", "dns_dga", "DNS lexical features"],
   ["DNS tunnel", "dns", "Lexical + query frequency"],
   ["Malicious encrypted session", "tls_quic", "Observable handshake and flow metadata"],
 ] as const;
@@ -14,6 +14,7 @@ const coverage = [
 const detectorLabels: Record<string, string> = {
   behaviour: "BEHAVIOUR",
   dns: "DNS",
+  dns_dga: "DNS DGA",
   tls_quic: "TLS / QUIC",
 };
 
@@ -34,10 +35,10 @@ export function DetectorsPage({ runtime }: DetectorsPageProps) {
       <section className="panel detector-group">
         <div className="panel__heading">
           <div>
-            <div className="eyebrow">APPROVED MODEL RUNTIME</div>
+            <div className="eyebrow">LOCAL MODEL RUNTIME</div>
             <h2>Detector families</h2>
           </div>
-          <span className="muted font-mono">{activeDetectors} / 3 loaded</span>
+          <span className="muted font-mono">{activeDetectors} / {detectors.length} loaded</span>
         </div>
         <div className="detector-cards">
           {detectors.map((d) => (
@@ -53,7 +54,7 @@ export function DetectorsPage({ runtime }: DetectorsPageProps) {
                   : d.reason ?? "No complete model artifact is available."}
               </p>
               <div className="detector-card__meta font-mono">
-                <span>Trust: <strong>{d.artifact_trusted ? "APPROVED" : "BLOCKED"}</strong></span>
+                <span>Load gate: <strong>{d.artifact_trusted ? "OPEN (LOCAL DEMO)" : "BLOCKED"}</strong></span>
                 <span>Schema: <strong>{d.schema_version}</strong></span>
                 <span>Support: <strong>{d.distribution_support}</strong></span>
               </div>
@@ -179,7 +180,7 @@ export function DetectorsPage({ runtime }: DetectorsPageProps) {
                 const threatTone =
                   model === "behaviour"
                     ? "row-icon-badge--purple"
-                    : model === "dns"
+                    : model.startsWith("dns")
                     ? "row-icon-badge--teal"
                     : "row-icon-badge--pink";
 

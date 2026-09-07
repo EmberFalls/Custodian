@@ -1,16 +1,18 @@
+# Copy this file to `models.demo.local.yaml` and set `trusted: true` only after
+# verifying every artifact hash and explicitly approving it for a local demo.
 models:
   behaviour:
-    enabled: true
+    enabled: false
     trusted: false
     schema_version: behaviour.v1
-    artifact_path: model_artifacts/behaviour-xgb-v1
+    artifact_path: model_artifacts/behaviour-colab-v1
     calibrator_path: null
     thresholds_path: null
   dns:
     enabled: false
     trusted: false
     schema_version: dns.v1
-    artifact_path: null
+    artifact_path: model_artifacts/dns-tunnelling-colab-v1
     calibrator_path: null
     thresholds_path: null
     variants:
@@ -22,6 +24,6 @@ models:
     enabled: false
     trusted: false
     schema_version: tls_quic.v1
-    artifact_path: null
+    artifact_path: model_artifacts/tls-quic-colab-v1
     calibrator_path: null
     thresholds_path: null

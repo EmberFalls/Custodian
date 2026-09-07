@@ -20,9 +20,22 @@ def test_repository_config_bundle_loads() -> None:
     assert bundle.models.models[FeatureFamily.BEHAVIOUR].artifact_path.name == "behaviour-xgb-v1"
     assert not bundle.models.models[FeatureFamily.BEHAVIOUR].trusted
     assert not bundle.models.models[FeatureFamily.DNS].enabled
+    assert "dga" in bundle.models.models[FeatureFamily.DNS].variants
+    assert not bundle.models.models[FeatureFamily.DNS].variants["dga"].enabled
     assert not bundle.models.models[FeatureFamily.TLS_QUIC].enabled
     assert bundle.storage.enabled
     assert bundle.storage.database_path.name == "custodian.sqlite3"
+
+
+def test_local_models_config_can_be_selected_explicitly(tmp_path, monkeypatch) -> None:
+    config_dir = Path(__file__).resolve().parents[2] / "configs"
+    override = tmp_path / "models.local.yaml"
+    override.write_text((config_dir / "models.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setenv("CUSTODIAN_MODELS_CONFIG", str(override))
+
+    bundle = load_config_bundle(config_dir)
+
+    assert bundle.models.models[FeatureFamily.BEHAVIOUR].artifact_path.name == "behaviour-xgb-v1"
 
 
 def test_temporal_windows_must_be_sorted_and_unique() -> None:

@@ -33,6 +33,12 @@ def test_health_and_detector_status_are_honest_about_missing_artifacts() -> None
     detector_status = client.get("/api/v1/detectors").json()
     assert all(not detector["enabled"] for detector in detector_status)
     assert all(not detector["artifact_trusted"] for detector in detector_status)
+    assert {detector["id"] for detector in detector_status} == {
+        "behaviour",
+        "dns",
+        "dns_dga",
+        "tls_quic",
+    }
     assert client.get("/api/v1/models").json() == detector_status
     response = client.get("/api/v1/health")
     assert response.headers["X-Correlation-ID"]
