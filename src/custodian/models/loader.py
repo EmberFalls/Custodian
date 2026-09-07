@@ -91,6 +91,25 @@ def _read_json(path: Path) -> dict:
     return result
 
 
+def _verify_external_hash_manifest(directory: Path, required_files: set[str]) -> None:
+    """Verify generic artifacts before any joblib deserialization occurs."""
+
+    hashes = _read_json(directory / "artifact_sha256.json")
+    if not required_files.issubset(hashes):
+        missing = sorted(required_files - set(hashes))
+        raise ValueError(f"artifact hash manifest is missing required files: {missing}")
+    for name, expected in hashes.items():
+        if Path(name).name != name or not isinstance(expected, str):
+            raise ValueError("artifact hash manifest contains an invalid entry")
+        path = directory / name
+        if not path.is_file():
+            raise FileNotFoundError(f"hashed artifact file is missing: {path}")
+        with path.open("rb") as stream:
+            actual = hashlib.file_digest(stream, "sha256").hexdigest()
+        if actual != expected:
+            raise ValueError(f"artifact integrity mismatch: {name}")
+
+
 def load_model_package(path: str | Path) -> LoadedModelPackage:
     directory = Path(path)
     if not directory.is_dir():
@@ -140,6 +159,18 @@ def load_model_package(path: str | Path) -> LoadedModelPackage:
         if estimator.n_features_in_ != len(feature_schema["columns"]):
             raise ValueError("model feature count disagrees with schema")
     else:
+        _verify_external_hash_manifest(
+            directory,
+            {
+                "model.joblib",
+                "calibrator.joblib",
+                "feature_schema.json",
+                "classes.json",
+                "thresholds.json",
+                "metrics.json",
+                "manifest.json",
+            },
+        )
         classes = tuple(_read_json(directory / "classes.json").get("classes", []))
         estimator = joblib.load(directory / "model.joblib")
         calibrator = joblib.load(directory / "calibrator.joblib")

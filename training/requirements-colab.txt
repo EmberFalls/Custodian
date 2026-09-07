@@ -1,0 +1,22 @@
+# Direct dependencies for the hosted Google Colab workflow.
+# Install this file before installing Custodian itself with --no-deps.
+dpkt==1.9.8
+fastapi==0.116.1
+huggingface-hub==0.35.3
+httpx==0.28.1
+joblib==1.5.2
+kagglehub==1.0.2
+numpy==2.2.6
+pandas==2.2.3
+psutil==7.0.0
+pyarrow==21.0.0
+pydantic==2.11.7
+pydantic-settings==2.10.1
+pytest==8.4.2
+PyYAML==6.0.2
+ruff==0.13.0
+scikit-learn==1.6.1
+scipy==1.15.3
+uvicorn==0.35.0
+websockets==15.0.1
+xgboost==3.0.2

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime
 
 from custodian.core.enums import FeatureFamily
 from custodian.core.ids import make_window_id
@@ -33,6 +34,36 @@ class DNSFeatureExtractor:
     ) -> FeatureVector:
         query = _query(packet)
         domain = query.get("name") if query else None
+        query_type = query.get("type") if query else None
+        return self.extract_metadata(
+            observed_at=packet.timestamp,
+            source_id=str(packet.src_ip),
+            domain=domain,
+            query_type=int(query_type) if query_type is not None else None,
+            recent_domains=state.recent_domains,
+            window_seconds=state.window_seconds,
+            capabilities=capabilities,
+        )
+
+    def extract_metadata(
+        self,
+        *,
+        observed_at: datetime,
+        source_id: str,
+        domain: str | None,
+        query_type: int | None,
+        recent_domains: tuple[str, ...],
+        window_seconds: int,
+        capabilities: CapabilityProfile,
+        recent_history_available: bool = True,
+    ) -> FeatureVector:
+        """Extract the same DNS schema from an explicit passive-metadata boundary.
+
+        Runtime packet handling delegates here, and approved tabular training adapters
+        call this method directly. That prevents training from inventing packet fields
+        or using source-only engineered columns that the runtime cannot reproduce.
+        """
+
         domain = domain.lower() if isinstance(domain, str) and domain else None
         labels = domain.split(".") if domain else []
         characters = list(domain.replace(".", "")) if domain else []
@@ -56,11 +87,10 @@ class DNSFeatureExtractor:
             )
             if characters
             else None,
-            "query_type": int(query["type"]) if query and query.get("type") is not None else None,
-            "query_frequency": state.recent_domains.count(domain) if domain else None,
-            "unique_domain_ratio": len(set(state.recent_domains))
-            / max(len(state.recent_domains), 1)
-            if state.recent_domains
+            "query_type": query_type,
+            "query_frequency": recent_domains.count(domain) if domain else None,
+            "unique_domain_ratio": len(set(recent_domains)) / max(len(recent_domains), 1)
+            if recent_domains
             else None,
         }
         for bucket in range(self.NGRAM_BUCKETS):
@@ -70,20 +100,22 @@ class DNSFeatureExtractor:
                 bucket = stable_bucket(first + second, self.NGRAM_BUCKETS)
                 key = f"bigram_bucket_{bucket}"
                 values[key] = int(values[key] or 0) + 1
-        availability = {
-            key: capabilities.has_dns_query_name
-            if key != "query_type"
-            else capabilities.has_dns_query_type
-            for key in values
-        }
+        availability = {}
+        for key in values:
+            if key == "query_type":
+                availability[key] = capabilities.has_dns_query_type
+            elif key in {"query_frequency", "unique_domain_ratio"}:
+                availability[key] = capabilities.has_dns_query_name and recent_history_available
+            else:
+                availability[key] = capabilities.has_dns_query_name
         for key, is_available in availability.items():
             if not is_available:
                 values[key] = None
         return FeatureVector(
             family=FeatureFamily.DNS,
             schema_version=DNS_SCHEMA_VERSION,
-            entity_id=f"dns:{packet.src_ip}",
-            window_id=make_window_id(str(packet.src_ip), state.observed_at, state.window_seconds),
+            entity_id=f"dns:{source_id}",
+            window_id=make_window_id(source_id, observed_at, window_seconds),
             values=values,
             availability=availability,
         )

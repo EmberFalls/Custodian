@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 from training.calibrate import fit_sigmoid_calibrator
 from training.evaluate import classification_metrics
 from training.export import export_model_package
-from training.splits import grouped_splits
+from training.splits import complete_class_grouped_splits
 from training.thresholds import derive_class_thresholds
 
 
@@ -54,7 +54,7 @@ def train_family(
         raise ValueError("cannot train on an empty prepared table")
     if set(table["family"]) != {family} or set(table["schema_version"]) != {schema_version}:
         raise ValueError("input table family/schema does not match requested model family")
-    splits = grouped_splits(table)
+    splits, split_seed = complete_class_grouped_splits(table)
     columns = _feature_columns(table)
     training_features = _matrix(splits.train, columns)
     validation_features = _matrix(splits.validation, columns)
@@ -62,7 +62,7 @@ def train_family(
     test_features = _matrix(splits.test, columns)
     estimator = Pipeline(
         [
-            ("impute", SimpleImputer(strategy="median")),
+            ("impute", SimpleImputer(strategy="median", keep_empty_features=True)),
             (
                 "classifier",
                 RandomForestClassifier(
@@ -100,6 +100,25 @@ def train_family(
             "validation_rows": len(splits.validation),
             "calibration_rows": len(splits.calibration),
             "test_rows": len(splits.test),
+        },
+        "split_seed": split_seed,
+        "split_group_counts": {
+            "train": int(splits.train["group_id"].nunique()),
+            "validation": int(splits.validation["group_id"].nunique()),
+            "calibration": int(splits.calibration["group_id"].nunique()),
+            "test": int(splits.test["group_id"].nunique()),
+        },
+        "class_balance": {
+            role: {
+                str(label): int(count)
+                for label, count in split["label"].value_counts().sort_index().items()
+            }
+            for role, split in {
+                "train": splits.train,
+                "validation": splits.validation,
+                "calibration": splits.calibration,
+                "test": splits.test,
+            }.items()
         },
         "training_data_sources": sorted(str(name) for name in table["source_name"].unique()),
     }
