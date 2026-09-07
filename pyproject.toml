@@ -9,15 +9,18 @@ description = "Passive, evidence-aware network threat detection prototype"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "argon2-cffi>=23.1.0",
     "dpkt>=1.9.8,<2",
     "fastapi>=0.115,<1",
     "joblib>=1.4,<2",
     "numpy>=2,<3",
     "pandas>=2.2,<4",
+    "passlib>=1.7.4",
     "psutil>=6,<8",
     "pyarrow>=18,<26",
     "pydantic>=2.8,<3",
     "pydantic-settings>=2.4,<3",
+    "pyjwt>=2.8.0",
     "PyYAML>=6,<7",
     "scikit-learn>=1.6,<2",
     "uvicorn>=0.34,<1",
@@ -40,7 +43,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
-pythonpath = ["src"]
+pythonpath = [".", "src"]
 testpaths = ["tests"]
 
 [tool.ruff]

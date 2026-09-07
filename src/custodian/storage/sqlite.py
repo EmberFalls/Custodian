@@ -50,6 +50,17 @@ CREATE TABLE IF NOT EXISTS application_events (
 );
 """
 
+MIGRATION_2 = """
+CREATE TABLE IF NOT EXISTS users (
+    user_id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'Analyst',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 
 class SQLiteRepository:
     """Serialize bounded application records through one process-local writer lock."""
@@ -69,6 +80,72 @@ class SQLiteRepository:
         with self._lock, self._connect() as connection:
             connection.executescript(MIGRATION_1)
             connection.execute("INSERT OR IGNORE INTO schema_migrations(version) VALUES (1)")
+            connection.executescript(MIGRATION_2)
+            connection.execute("INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)")
+
+    def get_user_by_username(self, username: str) -> dict | None:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                "SELECT user_id, username, display_name, password_hash, role, created_at FROM users WHERE LOWER(username) = LOWER(?)",
+                (username,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "user_id": row[0],
+            "username": row[1],
+            "display_name": row[2],
+            "password_hash": row[3],
+            "role": row[4],
+            "created_at": row[5],
+        }
+
+    def get_user_by_id(self, user_id: str) -> dict | None:
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                "SELECT user_id, username, display_name, password_hash, role, created_at FROM users WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "user_id": row[0],
+            "username": row[1],
+            "display_name": row[2],
+            "password_hash": row[3],
+            "role": row[4],
+            "created_at": row[5],
+        }
+
+    def upsert_user(
+        self, user_id: str, username: str, display_name: str, password_hash: str, role: str
+    ) -> None:
+        with self._lock, self._connect() as connection:
+            connection.execute(
+                """INSERT INTO users(user_id, username, display_name, password_hash, role)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(username) DO UPDATE SET
+                   display_name=excluded.display_name,
+                   password_hash=excluded.password_hash,
+                   role=excluded.role""",
+                (user_id, username.lower(), display_name, password_hash, role),
+            )
+
+    def list_users(self) -> list[dict]:
+        with self._lock, self._connect() as connection:
+            rows = connection.execute(
+                "SELECT user_id, username, display_name, role, created_at FROM users ORDER BY username"
+            ).fetchall()
+        return [
+            {
+                "user_id": row[0],
+                "username": row[1],
+                "display_name": row[2],
+                "role": row[3],
+                "created_at": row[4],
+            }
+            for row in rows
+        ]
 
     def upsert_capture(self, capture: CaptureRecord) -> None:
         payload = capture.model_dump_json()
