@@ -4,6 +4,8 @@ Custodian is a local-first, passive network-analysis system. It incrementally re
 
 The governing implementation contract is [docs/CUSTODIAN_FULL_IMPLEMENTATION_BLUEPRINT.md](docs/CUSTODIAN_FULL_IMPLEMENTATION_BLUEPRINT.md). Current gaps and the approved phase order are recorded in [docs/PHASE_0_GAP_ANALYSIS.md](docs/PHASE_0_GAP_ANALYSIS.md).
 The current application/deferred-scope ledger is [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
+The complete HTTP and WebSocket reference is [docs/api.md](docs/api.md).
+The reusable hosted-Colab environment workflow is documented in [docs/colab-training.md](docs/colab-training.md); it deliberately stops before dataset handling or model fitting.
 
 ## Current safety state
 

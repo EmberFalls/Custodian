@@ -26,6 +26,11 @@ def validate_feature_compatibility(vector: FeatureVector, schema: dict) -> None:
         if not expected.issubset(actual):
             raise ValueError("runtime vector is missing required behaviour model inputs")
         return
+    if schema.get("allow_runtime_feature_superset") is True:
+        if not expected.issubset(actual):
+            missing = sorted(expected - actual)
+            raise ValueError(f"runtime vector is missing required model inputs: {missing}")
+        return
     if actual != expected:
         missing = sorted(expected - actual)
         extra = sorted(actual - expected)

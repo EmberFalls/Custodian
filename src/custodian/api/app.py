@@ -37,6 +37,29 @@ from custodian.runtime.engine import CustodianEngine
 from custodian.runtime.events import EventHub
 from custodian.storage import SQLiteRepository
 
+API_DESCRIPTION = """
+Local, passive-only API for authorized capture-file analysis. Custodian reads packets from
+approved files, produces bounded metadata and evidence-aware alerts, and exposes local telemetry.
+It does not scan, inject, block, replay packets onto a network, or decrypt TLS/QUIC payloads.
+
+This MVP includes local demo-login routes for the presentation UI. They are not a
+production authorization boundary. Keep the supported server binding on `127.0.0.1`;
+trusted-host filtering and the demo login are not substitutes for production authentication.
+""".strip()
+
+OPENAPI_TAGS = [
+    {"name": "auth", "description": "Local demo-login session routes."},
+    {"name": "system", "description": "Health, readiness, and diagnostics."},
+    {"name": "captures", "description": "Discover and validate confined capture files."},
+    {"name": "replay", "description": "Control passive local capture-file processing."},
+    {"name": "telemetry", "description": "Runtime counters, rates, resources, and status."},
+    {"name": "alerts", "description": "Evidence-aware alerts and analyst lifecycle."},
+    {"name": "detectors", "description": "Detector/model availability and trust state."},
+    {"name": "traffic", "description": "Bounded flow summaries and host timelines."},
+    {"name": "events", "description": "Cursor-aware bounded application events."},
+    {"name": "exports", "description": "Local persisted-alert report generation."},
+]
+
 
 class ReplayStartRequest(BaseModel):
     capture: str = Field(min_length=1)
@@ -387,7 +410,13 @@ def create_app(config: ConfigBundle) -> FastAPI:
         if session.thread:
             await asyncio.to_thread(session.thread.join, 2)
 
-    app = FastAPI(title="Custodian", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Custodian API",
+        description=API_DESCRIPTION,
+        version="0.3.0",
+        openapi_tags=OPENAPI_TAGS,
+        lifespan=lifespan,
+    )
     app.add_middleware(
         TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"]
     )
@@ -436,7 +465,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
             },
         )
 
-    @app.post("/api/v1/auth/login")
+    @app.post("/api/v1/auth/login", tags=["auth"], summary="Sign in to the local demo UI")
     async def login(request: Request):
         username = ""
         password = ""
@@ -474,7 +503,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
             },
         }
 
-    @app.get("/api/v1/auth/me")
+    @app.get("/api/v1/auth/me", tags=["auth"], summary="Get the signed-in demo user")
     def auth_me(
         authorization: str | None = Header(None),
         custodian_token: str | None = Cookie(None),
@@ -500,11 +529,15 @@ def create_app(config: ConfigBundle) -> FastAPI:
             "created_at": user["created_at"],
         }
 
-    @app.post("/api/v1/auth/logout")
+    @app.post("/api/v1/auth/logout", tags=["auth"], summary="End the local demo UI session")
     def logout():
         return {"status": "ok", "message": "Successfully logged out"}
 
-    @app.get("/api/v1/auth/demo-credentials")
+    @app.get(
+        "/api/v1/auth/demo-credentials",
+        tags=["auth"],
+        summary="List local demo credentials",
+    )
     def demo_credentials():
         return [
             {
@@ -516,15 +549,19 @@ def create_app(config: ConfigBundle) -> FastAPI:
             for u in DEMO_USERS
         ]
 
-    @app.get("/health")
+    @app.get("/health", tags=["system"], summary="Check basic process health")
     def health():
         return {"status": "ok", "return_path": "NONE"}
 
-    @app.get("/api/v1/health")
+    @app.get("/api/v1/health", tags=["system"], summary="Check versioned API health")
     def health_v1():
         return health()
 
-    @app.get("/api/v1/readiness")
+    @app.get(
+        "/api/v1/readiness",
+        tags=["system"],
+        summary="Inspect component and passive-input readiness",
+    )
     def readiness():
         model_status = detectors()
         model_components = {
@@ -567,15 +604,19 @@ def create_app(config: ConfigBundle) -> FastAPI:
             },
         }
 
-    @app.get("/api/v1/status")
+    @app.get("/api/v1/status", tags=["replay"], summary="Get current replay session status")
     def status():
         return session.status()
 
-    @app.get("/api/v1/replay/status")
+    @app.get(
+        "/api/v1/replay/status",
+        tags=["replay"],
+        summary="Get current replay status through the replay namespace",
+    )
     def replay_status():
         return status()
 
-    @app.get("/api/v1/captures")
+    @app.get("/api/v1/captures", tags=["captures"], summary="List confined capture candidates")
     def captures():
         records = []
         for candidate in session.validator.list_candidates():
@@ -590,7 +631,11 @@ def create_app(config: ConfigBundle) -> FastAPI:
             )
         return records
 
-    @app.post("/api/v1/captures/validate")
+    @app.post(
+        "/api/v1/captures/validate",
+        tags=["captures"],
+        summary="Validate one capture before processing",
+    )
     def validate_capture(request: CaptureValidateRequest):
         try:
             record = session.validate(request.capture)
@@ -598,7 +643,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return record.model_dump(mode="json")
 
-    @app.get("/api/v1/alerts")
+    @app.get("/api/v1/alerts", tags=["alerts"], summary="List retained alert records")
     def alerts(limit: int = 100, offset: int = 0):
         if not 1 <= limit <= 500 or offset < 0:
             raise HTTPException(status_code=400, detail="invalid alert pagination")
@@ -607,7 +652,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
         start = max(end - limit, 0)
         return [alert.model_dump(mode="json") for alert in records[start:end]]
 
-    @app.get("/api/v1/alerts/{alert_id}")
+    @app.get("/api/v1/alerts/{alert_id}", tags=["alerts"], summary="Get one alert record")
     def alert_detail(alert_id: str):
         for alert in list(engine.alerts):
             if alert.alert_id == alert_id:
@@ -632,27 +677,43 @@ def create_app(config: ConfigBundle) -> FastAPI:
         session._publish("alert.status_changed", {"alert_id": alert_id, "status": status.value})
         return {"status": status.value, "alert_id": alert_id}
 
-    @app.post("/api/v1/alerts/{alert_id}/acknowledge")
+    @app.post(
+        "/api/v1/alerts/{alert_id}/acknowledge",
+        tags=["alerts"],
+        summary="Acknowledge a persisted alert",
+    )
     def acknowledge_alert(alert_id: str):
         return update_alert_status(alert_id, AlertStatus.ACKNOWLEDGED)
 
-    @app.post("/api/v1/alerts/{alert_id}/close")
+    @app.post(
+        "/api/v1/alerts/{alert_id}/close",
+        tags=["alerts"],
+        summary="Close a persisted alert",
+    )
     def close_alert(alert_id: str):
         return update_alert_status(alert_id, AlertStatus.CLOSED)
 
-    @app.get("/api/v1/metrics")
+    @app.get("/api/v1/metrics", tags=["telemetry"], summary="Get measured runtime metrics")
     def metrics():
         return engine.metrics.snapshot(interval_seconds=session.telemetry_interval)
 
-    @app.get("/api/v1/detectors")
+    @app.get(
+        "/api/v1/detectors",
+        tags=["detectors"],
+        summary="List detector readiness and artifact trust",
+    )
     def detectors():
         return engine.detector_status()
 
-    @app.get("/api/v1/models")
+    @app.get(
+        "/api/v1/models",
+        tags=["detectors"],
+        summary="List model status through the compatibility alias",
+    )
     def models():
         return detectors()
 
-    @app.get("/api/v1/flows")
+    @app.get("/api/v1/flows", tags=["traffic"], summary="List bounded flow summaries")
     def flows(limit: int = 100):
         if not 1 <= limit <= 500:
             raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
@@ -661,7 +722,11 @@ def create_app(config: ConfigBundle) -> FastAPI:
         completed = list(engine.recent_flows)[-remaining:] if remaining else []
         return [flow.model_dump(mode="json") for flow in active + completed]
 
-    @app.get("/api/v1/timeline")
+    @app.get(
+        "/api/v1/timeline",
+        tags=["traffic"],
+        summary="List bounded host observations and alert markers",
+    )
     def timeline(host: str | None = None, limit: int = 200):
         if not 1 <= limit <= 500:
             raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
@@ -679,7 +744,11 @@ def create_app(config: ConfigBundle) -> FastAPI:
         ]
         return points[-limit:]
 
-    @app.get("/api/v1/diagnostics")
+    @app.get(
+        "/api/v1/diagnostics",
+        tags=["system"],
+        summary="Inspect routing, model-load, and input diagnostics",
+    )
     def diagnostics():
         return {
             "routing": list(engine.routing_diagnostics),
@@ -687,7 +756,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
             "inputs": adapter_statuses(),
         }
 
-    @app.get("/api/v1/events")
+    @app.get("/api/v1/events", tags=["events"], summary="Poll events after a sequence cursor")
     def events(after_sequence: int = 0, limit: int = 200):
         try:
             cursor_reset = event_hub.cursor_requires_resync(after_sequence)
@@ -702,7 +771,11 @@ def create_app(config: ConfigBundle) -> FastAPI:
             "events": [event.model_dump(mode="json") for event in records],
         }
 
-    @app.post("/api/v1/exports")
+    @app.post(
+        "/api/v1/exports",
+        tags=["exports"],
+        summary="Create a local persisted-alert report",
+    )
     def create_export(request: ExportRequest):
         if repository is None:
             raise HTTPException(status_code=503, detail="persistence is unavailable")
@@ -741,11 +814,15 @@ def create_app(config: ConfigBundle) -> FastAPI:
             "directory": "runtime/reports",
         }
 
-    @app.get("/api/v1/telemetry")
+    @app.get(
+        "/api/v1/telemetry",
+        tags=["telemetry"],
+        summary="Get combined status, metrics, and detector state",
+    )
     def telemetry():
         return {"status": status(), "metrics": metrics(), "detectors": detectors()}
 
-    @app.post("/api/v1/replay/start")
+    @app.post("/api/v1/replay/start", tags=["replay"], summary="Start passive file replay")
     def start_replay(request: ReplayStartRequest):
         try:
             session.start(request.capture, request.mode, request.speed_multiplier)
@@ -760,19 +837,23 @@ def create_app(config: ConfigBundle) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"status": result}
 
-    @app.post("/api/v1/replay/pause")
+    @app.post("/api/v1/replay/pause", tags=["replay"], summary="Pause active file replay")
     def pause_replay():
         return control(session.pause, "paused")
 
-    @app.post("/api/v1/replay/resume")
+    @app.post("/api/v1/replay/resume", tags=["replay"], summary="Resume paused file replay")
     def resume_replay():
         return control(session.resume, "running")
 
-    @app.post("/api/v1/replay/stop")
+    @app.post("/api/v1/replay/stop", tags=["replay"], summary="Request a safe replay stop")
     def stop_replay():
         return control(session.stop, "stopping")
 
-    @app.post("/api/v1/replay/seek")
+    @app.post(
+        "/api/v1/replay/seek",
+        tags=["replay"],
+        summary="Rebuild state from capture origin to a target",
+    )
     def seek_replay(request: ReplaySeekRequest):
         try:
             session.seek(request.target_progress)
@@ -780,7 +861,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"status": "rebuilding", "target_progress": request.target_progress}
 
-    @app.post("/api/v1/replay/reset")
+    @app.post("/api/v1/replay/reset", tags=["replay"], summary="Reset idle runtime state")
     def reset_replay():
         return control(session.reset, "reset")
 

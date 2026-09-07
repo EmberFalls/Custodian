@@ -16,6 +16,7 @@ venv/
 # IDE and operating-system state
 .idea/
 .vscode/
+.ipynb_checkpoints/
 .DS_Store
 Thumbs.db
 
