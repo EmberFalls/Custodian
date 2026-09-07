@@ -1,0 +1,24 @@
+{
+  "allow_runtime_feature_superset": true,
+  "columns": [
+    "feature__character_entropy",
+    "feature__digit_ratio",
+    "feature__domain_length",
+    "feature__hyphen_ratio",
+    "feature__letter_ratio",
+    "feature__mean_label_length",
+    "feature__repeated_character_ratio",
+    "feature__subdomain_count",
+    "feature__bigram_bucket_0",
+    "feature__bigram_bucket_1",
+    "feature__bigram_bucket_2",
+    "feature__bigram_bucket_3",
+    "feature__bigram_bucket_4",
+    "feature__bigram_bucket_5",
+    "feature__bigram_bucket_6",
+    "feature__bigram_bucket_7"
+  ],
+  "family": "dns",
+  "preprocessing": "median-imputation over universally observable lexical dns.v1 features; source availability, query type, and temporal history are excluded",
+  "schema_version": "dns.v1"
+}

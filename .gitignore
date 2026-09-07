@@ -97,10 +97,16 @@ frontend/.vite/
 frontend/coverage/
 frontend/.eslintcache
 
-# The reviewed Behaviour package is intentionally distributed for fresh-clone
-# inference. Other model packages and experimental artifacts stay local.
+# Only the final reviewed demo packages below are distributed for fresh-clone
+# inference. Experimental artifacts remain local.
 !model_artifacts/behaviour-colab-v1/
 !model_artifacts/behaviour-colab-v1/**
+!model_artifacts/dns-tunnelling-colab-v1/
+!model_artifacts/dns-tunnelling-colab-v1/**
+!model_artifacts/dns-dga-drift26dsn-hgb-v1/
+!model_artifacts/dns-dga-drift26dsn-hgb-v1/**
+!model_artifacts/tls-quic-colab-v1/
+!model_artifacts/tls-quic-colab-v1/**
 
 # Documentation only; captures themselves remain local and ignored.
 !data/demo/README.md

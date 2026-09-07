@@ -1,3 +1,6 @@
 # Model-package hashes are calculated over exact artifact bytes. Do not apply
 # platform line-ending conversion to the reviewed distributed package.
 model_artifacts/behaviour-colab-v1/** -text
+model_artifacts/dns-tunnelling-colab-v1/** -text
+model_artifacts/dns-dga-drift26dsn-hgb-v1/** -text
+model_artifacts/tls-quic-colab-v1/** -text

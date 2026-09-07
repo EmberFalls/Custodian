@@ -1,0 +1,26 @@
+{
+  "allow_runtime_feature_superset": true,
+  "columns": [
+    "available__byte_rate_a_to_b",
+    "available__byte_rate_b_to_a",
+    "available__bytes_a_to_b",
+    "available__bytes_b_to_a",
+    "available__directional_byte_ratio",
+    "available__flow_duration_seconds",
+    "available__packet_size_mean",
+    "available__packet_size_variance",
+    "available__total_bytes",
+    "feature__byte_rate_a_to_b",
+    "feature__byte_rate_b_to_a",
+    "feature__bytes_a_to_b",
+    "feature__bytes_b_to_a",
+    "feature__directional_byte_ratio",
+    "feature__flow_duration_seconds",
+    "feature__packet_size_mean",
+    "feature__packet_size_variance",
+    "feature__total_bytes"
+  ],
+  "family": "tls_quic",
+  "preprocessing": "median imputation; only shared runtime-reproducible flow metadata",
+  "schema_version": "tls_quic.v1"
+}

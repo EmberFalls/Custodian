@@ -1,0 +1,6 @@
+{
+  "classes": [
+    "BENIGN_ENCRYPTED",
+    "MALICIOUS_ENCRYPTED_SESSION"
+  ]
+}

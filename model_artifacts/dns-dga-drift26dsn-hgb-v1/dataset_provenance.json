@@ -1,0 +1,81 @@
+{
+  "conflicting_domains_removed": 1,
+  "conflicting_rows_removed": 2,
+  "dataset": "DRIFT26DSN / raw_including_TLD",
+  "dga_family_count": 58,
+  "domain_resolution_performed": false,
+  "duplicate_domains_removed": 0,
+  "final_class_counts": {
+    "BENIGN": 299999,
+    "DGA": 215088
+  },
+  "manifest_version": "custodian.dga_training_data.v1",
+  "payload_execution_performed": false,
+  "processed_table": "/content/custodian-workspace/prepared/dns_dga_drift26dsn.parquet",
+  "schema_version": "dns.v1",
+  "shared_feature_code": "custodian.features.dns.dns_lexical_values",
+  "source_to_class": {
+    "0": "BENIGN",
+    "1": "DGA"
+  },
+  "sources": [
+    {
+      "bytes": 4312816,
+      "filename": "T17_benign.parquet",
+      "input_rows_read": 300000,
+      "invalid_rows_removed": 0,
+      "rows_retained_before_cross_file_cleaning": 300000,
+      "sha256": "11b31a045e3482ed7839a3968f079b4d58e9762cd7ee7294ca5275eb95d87daa"
+    },
+    {
+      "bytes": 4056842,
+      "filename": "T17_dga.parquet",
+      "input_rows_read": 215089,
+      "invalid_rows_removed": 0,
+      "rows_retained_before_cross_file_cleaning": 215089,
+      "sha256": "3955a85273b211c1285f8fb6d1d60983e806fae105f2a179ec1861ecdbe00c8f"
+    }
+  ],
+  "split_grouping": "whole DGA family; deterministic normalized-domain hash buckets for benign rows",
+  "split_seed": 7876,
+  "splits": {
+    "calibration": {
+      "classes": {
+        "BENIGN": 30071,
+        "DGA": 21577
+      },
+      "dga_families": 6,
+      "groups": 415,
+      "rows": 51648
+    },
+    "test": {
+      "classes": {
+        "BENIGN": 29623,
+        "DGA": 21372
+      },
+      "dga_families": 6,
+      "groups": 415,
+      "rows": 50995
+    },
+    "train": {
+      "classes": {
+        "BENIGN": 210058,
+        "DGA": 151397
+      },
+      "dga_families": 40,
+      "groups": 2909,
+      "rows": 361455
+    },
+    "validation": {
+      "classes": {
+        "BENIGN": 30247,
+        "DGA": 20742
+      },
+      "dga_families": 6,
+      "groups": 415,
+      "rows": 50989
+    }
+  },
+  "traffic_replay_performed": false,
+  "training_target": "BENIGN versus DGA"
+}

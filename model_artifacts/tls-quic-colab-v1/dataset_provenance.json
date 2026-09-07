@@ -1,0 +1,66 @@
+{
+  "adaptation": {
+    "class_counts": {
+      "BENIGN_ENCRYPTED": 233515,
+      "MALICIOUS_ENCRYPTED_SESSION": 243550
+    },
+    "conflicting_feature_rows_removed": 0,
+    "dataset": "BCCC-CIRA-CIC-DoHBrw-2020",
+    "duplicate_feature_rows_removed": 22041,
+    "excluded_source_features": [
+      "packet-time statistics whose definition does not match runtime inter-arrival statistics",
+      "response-time statistics not reproduced by the runtime",
+      "all source-only labels and identifiers"
+    ],
+    "groups": 975,
+    "input_rows": 499106,
+    "invalid_numeric_rows": 0,
+    "limitations": [
+      "The source is balanced with SMOTE and is not an independent natural-traffic distribution.",
+      "Malicious means DoH tunnelling in this dataset, not every malicious TLS/QUIC session.",
+      "The source has no packet counts, TLS ClientHello fields, QUIC fields, host identity, or timestamps.",
+      "Contiguous row blocks are provenance proxies, not verified host/session groups.",
+      "A separate independent dataset is required before broad encrypted-session claims."
+    ],
+    "network_interface_opened": false,
+    "payload_executed": false,
+    "prepared_rows": 477065,
+    "selected_features": [
+      "flow_duration_seconds",
+      "total_bytes",
+      "packet_size_mean",
+      "packet_size_variance",
+      "bytes_a_to_b",
+      "bytes_b_to_a",
+      "directional_byte_ratio",
+      "byte_rate_a_to_b",
+      "byte_rate_b_to_a"
+    ],
+    "shared_extractor": "custodian.features.tls_quic.TLSQUICFeatureExtractor.metadata_values",
+    "source_bytes": 216120294,
+    "source_filename": "BCCC-CIRA-CIC-DoHBrw-2020.csv",
+    "source_sha256": "ef625bb2a4bbd2e280fe2d2fdd6f6805bae3397bc75ffd653505108e1f5e45d7",
+    "traffic_replayed": false,
+    "unsupported_label_rows": 0
+  },
+  "bccc_page": "https://www.yorku.ca/research/bccc/ucs-technical/cybersecurity-datasets-cds/dns-over-https-bccc-cira-cic-dohbrw-2020/",
+  "dataset": "BCCC-CIRA-CIC-DoHBrw-2020",
+  "download": {
+    "dataset_handle": "bcccdatasets/bccc-cira-cic-dohbrw-2020",
+    "dataset_member": "BCCC-CIRA-CIC-DoHBrw-2020.csv",
+    "source_bytes": 216120294,
+    "source_sha256": "ef625bb2a4bbd2e280fe2d2fdd6f6805bae3397bc75ffd653505108e1f5e45d7"
+  },
+  "feature_family": "tls_quic",
+  "feature_schema_version": "tls_quic.v1",
+  "google_drive_mounted": false,
+  "kaggle_page": "https://www.kaggle.com/datasets/bcccdatasets/bccc-cira-cic-dohbrw-2020",
+  "license_reported_by_kaggle": "MIT",
+  "manifest_version": "custodian.encrypted_training_data.v1",
+  "network_interface_opened": false,
+  "official_original_page": "https://www.unb.ca/cic/datasets/dohbrw-2020.html",
+  "prepared_rows": 477065,
+  "publisher": "Behaviour-Centric Cybersecurity Center, York University",
+  "source_content_executed": false,
+  "traffic_replayed": false
+}

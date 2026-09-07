@@ -47,14 +47,14 @@ Complete this checklist before the judges arrive:
 - Connect the laptop to power.
 - Close unnecessary applications and disable distracting notifications.
 - Confirm Python dependencies and frontend packages are installed.
-- Confirm `configs/models.demo.local.yaml` exists locally.
+- Confirm `configs/models.demo.yaml` exists from the repository clone.
 - Confirm Behaviour, DNS, and TLS/QUIC model packages exist under `model_artifacts/`.
 - Confirm `dns.cap`, `ddos.pcap`, and `http.cap` exist under `data/demo/`.
 - Keep the website and API bound to `127.0.0.1`; do not expose either server to the LAN.
 - Perform one complete rehearsal after the final reboot.
 - Keep both terminal windows available in case the judges ask how the system is running.
 
-Local model artifacts, the local demo configuration, datasets, and generated runtime files are intentionally excluded from Git.
+The four reviewed model artifacts and `configs/models.demo.yaml` are included in Git. Datasets, captures, local overrides, and generated runtime files remain excluded.
 
 ## 4. Start the application
 
@@ -62,7 +62,7 @@ Open PowerShell terminal 1 in PyCharm and run the backend:
 
 ```powershell
 Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
-$env:CUSTODIAN_MODELS_CONFIG = 'models.demo.local.yaml'
+$env:CUSTODIAN_MODELS_CONFIG = 'models.demo.yaml'
 $env:LOKY_MAX_CPU_COUNT = '4'
 & '.\.venv\Scripts\python.exe' -m uvicorn custodian.api.app:app --host 127.0.0.1 --port 8000
 ```
@@ -346,7 +346,7 @@ An authorized capture adapter would open a specifically selected interface in pa
 
 ### Readiness says DEGRADED
 
-- Confirm the backend was started with `$env:CUSTODIAN_MODELS_CONFIG = 'models.demo.local.yaml'` in the same terminal.
+- Confirm the backend was started with `$env:CUSTODIAN_MODELS_CONFIG = 'models.demo.yaml'` in the same terminal.
 - Open **Detectors** and identify the model family that failed to load.
 - Restart using the prepared environment and configuration; do not conceal a genuine failure.
 
@@ -386,7 +386,7 @@ Do not delete model artifacts, captures, or runtime reports during ordinary shut
 
 ## 19. Final operator checklist
 
-- [ ] Backend started with `models.demo.local.yaml`
+- [ ] Backend started with `models.demo.yaml`
 - [ ] Frontend started on `127.0.0.1:5173`
 - [ ] Overall readiness is `READY`
 - [ ] Behaviour detector is `READY`

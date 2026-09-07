@@ -1,0 +1,38 @@
+{
+  "acceptance_targets": {
+    "maximum_false_positive_rate": 0.05,
+    "minimum_precision": 0.8,
+    "minimum_recall": 0.8
+  },
+  "artifact_format": "custodian.model_package.v1",
+  "candidate_selection": "hist_gradient_boosting",
+  "exported_at": "2026-09-07T06:25:50.825745+00:00",
+  "family": "tls_quic",
+  "independent_external_evaluation_completed": false,
+  "model_type": "HistGradientBoostingClassifier",
+  "schema_version": "tls_quic.v1",
+  "split_roles": {
+    "calibration": {
+      "groups": 98,
+      "rows": 47939
+    },
+    "test": {
+      "groups": 98,
+      "rows": 47911
+    },
+    "train": {
+      "groups": 681,
+      "rows": 333276
+    },
+    "validation": {
+      "groups": 98,
+      "rows": 47939
+    }
+  },
+  "split_seed": 3240,
+  "training_data_sources": [
+    "BCCC-CIRA-CIC-DoHBrw-2020.csv"
+  ],
+  "trusted": false,
+  "validation_target_met": true
+}

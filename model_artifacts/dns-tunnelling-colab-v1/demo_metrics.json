@@ -1,0 +1,64 @@
+{
+  "benchmark": "previously exposed CTU official test split; not independent validation",
+  "confusion_matrix": [
+    [
+      235957,
+      115
+    ],
+    [
+      602,
+      957
+    ]
+  ],
+  "false_negative_rate": 0.386144964720975,
+  "false_positive_rate": 0.00048713951675759937,
+  "passed_80_percent_recall_benchmark": false,
+  "precision": 0.8927238805970149,
+  "production_approved": false,
+  "purpose": "local MVP demonstration operating point",
+  "recall": 0.613855035279025,
+  "runtime_acceptance": {
+    "classes": [
+      "BENIGN_DNS",
+      "DNS_TUNNEL"
+    ],
+    "classification_report": {
+      "BENIGN_DNS": {
+        "f1-score": 0.9984829602797954,
+        "precision": 0.9974551803144247,
+        "recall": 0.9995128604832424,
+        "support": 236072.0
+      },
+      "DNS_TUNNEL": {
+        "f1-score": 0.7274800456100342,
+        "precision": 0.8927238805970149,
+        "recall": 0.613855035279025,
+        "support": 1559.0
+      },
+      "accuracy": 0.9969827169014144,
+      "macro avg": {
+        "f1-score": 0.8629815029449148,
+        "precision": 0.9450895304557199,
+        "recall": 0.8066839478811336,
+        "support": 237631.0
+      },
+      "weighted avg": {
+        "f1-score": 0.996705020768662,
+        "precision": 0.9967680810038994,
+        "recall": 0.9969827169014144,
+        "support": 237631.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        235957,
+        115
+      ],
+      [
+        602,
+        957
+      ]
+    ]
+  },
+  "threshold": 0.05
+}

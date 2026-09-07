@@ -1,0 +1,28 @@
+{
+  "dataset": "snsec-net/dga-detection-drift26dsn",
+  "domain_resolution_performed": false,
+  "original_members": [
+    {
+      "bytes": 18538363,
+      "filename": "T17_benign.parquet",
+      "sha256": "630d8dfc2067badd843490b2b18c6efd76b60ee838cf9228f9049f96a14dc178",
+      "url": "https://huggingface.co/datasets/snsec-net/dga-detection-drift26dsn/resolve/3b31077020cd1c013d0a75cad51042a2327c4521/raw_including_TLD/T17_benign.parquet"
+    },
+    {
+      "bytes": 236854654,
+      "filename": "T17_dga.parquet",
+      "sha256": "f8b46e0ac9db0215679f922b4e1669e8955eba5569eb0992973324a7d5f3b69e",
+      "url": "https://huggingface.co/datasets/snsec-net/dga-detection-drift26dsn/resolve/3b31077020cd1c013d0a75cad51042a2327c4521/raw_including_TLD/T17_dga.parquet"
+    }
+  ],
+  "payload_execution_performed": false,
+  "representation": "raw_including_TLD",
+  "revision": "3b31077020cd1c013d0a75cad51042a2327c4521",
+  "sampling": {
+    "benign_limit": 300000,
+    "deterministic_first_valid_rows": true,
+    "dga_limit_per_family": 5000
+  },
+  "traffic_replay_performed": false,
+  "year": 2017
+}

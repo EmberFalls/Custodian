@@ -12,7 +12,7 @@ The reusable hosted-Colab environment workflow is documented in [docs/colab-trai
 - API and dashboard are localhost-only.
 - Offline capture replay means reading a file into the local analysis pipeline; it never transmits captured packets.
 - Model artifacts are untrusted by default and are not deserialized during startup.
-- The reviewed Behaviour model package is distributed with the repository for local inference; optional DNS and TLS/QUIC packages remain local-only showcase artifacts.
+- The reviewed Behaviour, DNS-tunnelling, DNS DGA, and TLS/QUIC model packages are distributed with the repository for local inference.
 - The DNS-tunnelling candidate can be loaded through the explicit local showcase override.
 - DNS DGA has a safety-gated HGB preparation/training/integration path and a locally exported DRIFT26DSN MVP candidate; it remains disabled by default and is enabled only by the operator-approved local demo configuration.
 - Model training and passive live-interface testing are intentionally deferred until the user completes and approves the documented isolation checklist.
@@ -39,28 +39,30 @@ Open <http://127.0.0.1:5173/>. Put only an authorized `.cap`, `.pcap`, or `.pcap
 
 Stop each server with `Ctrl+C` in the terminal that started it. PyCharm needs no special web setting: select `E:\Python\python.exe` as the interpreter and use the repository root as the backend working directory.
 
-### Behaviour-model demo from a fresh clone
+### Full four-model demo from a fresh clone
 
-The repository contains the reviewed `behaviour-colab-v1` package under
-`model_artifacts/behaviour-colab-v1`. It is hash-verified before loading and
-uses only relative repository paths through `configs/models.demo.yaml`.
+The repository contains the reviewed `behaviour-colab-v1`,
+`dns-tunnelling-colab-v1`, `dns-dga-drift26dsn-hgb-v1`, and
+`tls-quic-colab-v1` packages under `model_artifacts/`. They are hash-verified
+before loading and use only relative repository paths through
+`configs/models.demo.yaml`.
 
 ```powershell
 Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
 $env:CUSTODIAN_MODELS_CONFIG = 'models.demo.yaml'
-& '.\.venv\Scripts\python.exe' -m custodian.cli demo-check --require-ready behaviour
+& '.\.venv\Scripts\python.exe' -m custodian.cli demo-check
 & '.\.venv\Scripts\python.exe' -m uvicorn custodian.api.app:app --host 127.0.0.1 --port 8000
 ```
 
-The readiness report must show the Behaviour detector as `READY`. CICIDS2017
-is not needed to run this trained model; it is needed only for approved
-retraining.
+The readiness report must show all four configured detectors as `READY`.
+CICIDS2017 is not needed to run these trained models; it is needed only for
+approved retraining.
 
 ### Local showcase with the additional model candidates
 
-Optional DNS, TLS/QUIC, and DGA model archives plus
-`configs/models.demo.local.yaml` are intentionally ignored by Git. On a
-prepared showcase laptop, start the backend with the explicit local override:
+`configs/models.demo.local.yaml` remains ignored for machine-specific local
+overrides. It is not needed for a standard clone because the tracked
+`configs/models.demo.yaml` is the full showcase configuration.
 
 ```powershell
 Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
@@ -114,7 +116,7 @@ Do not enable `trusted: true` in `configs/models.yaml` merely to make an alert a
 
 ## Repository hygiene
 
-The final reviewed Behaviour inference package is intentionally tracked. Raw
+The four final reviewed inference packages are intentionally tracked. Raw
 captures, CICIDS2017 CSVs, other research datasets, processed tables,
 experimental model binaries, local databases, reports, caches, secrets, virtual
 environments, and frontend build output are ignored by default. See
