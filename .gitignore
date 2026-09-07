@@ -71,6 +71,7 @@ reports/benchmarks/*
 !reports/benchmarks/.gitkeep
 runtime/*
 !runtime/.gitkeep
+output/
 
 # Raw captures, serialized models, and generated archives stay local even if
 # accidentally placed outside their designated ignored directories.
@@ -95,3 +96,11 @@ frontend/*.tsbuildinfo
 frontend/.vite/
 frontend/coverage/
 frontend/.eslintcache
+
+# The reviewed Behaviour package is intentionally distributed for fresh-clone
+# inference. Other model packages and experimental artifacts stay local.
+!model_artifacts/behaviour-colab-v1/
+!model_artifacts/behaviour-colab-v1/**
+
+# Documentation only; captures themselves remain local and ignored.
+!data/demo/README.md

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from custodian.cli import _demo_constraints, main
+from custodian.cli import _demo_constraints, _parser, main
 
 
 def test_safety_status_is_local_and_gated(capsys) -> None:
@@ -65,3 +65,9 @@ def test_demo_constraints_reads_exact_pins(tmp_path: Path) -> None:
         "scikit-learn": "1.7.2",
         "joblib": "1.5.2",
     }
+
+
+def test_demo_check_can_require_only_behaviour_detector() -> None:
+    args = _parser().parse_args(["demo-check", "--require-ready", "behaviour"])
+
+    assert args.require_ready == ["behaviour"]

@@ -1,0 +1,32 @@
+{
+  "dataset": "CICIDS2017 MachineLearningCSV",
+  "files": [
+    {
+      "bytes": 58316725,
+      "name": "Friday-WorkingHours-Morning.pcap_ISCX.csv",
+      "sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000"
+    },
+    {
+      "bytes": 76906168,
+      "name": "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+      "sha256": "ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b"
+    },
+    {
+      "bytes": 77123859,
+      "name": "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+      "sha256": "6ff1580f5f81c0ae28a26f7631721018577f5f7c5e0feac28b795fcfe7b411ee"
+    }
+  ],
+  "google_drive_mounted": false,
+  "manifest_version": "custodian.behaviour_download.v1",
+  "mirror_is_official": false,
+  "mirror_page": "https://huggingface.co/datasets/San0160/CICIDS-2017",
+  "mirror_repository": "San0160/CICIDS-2017",
+  "mirror_revision": "acc006479c77c0d1904fd5549a1b32658d9f7ab3",
+  "network_interface_opened": false,
+  "official_page": "https://www.unb.ca/cic/datasets/ids-2017.html",
+  "publisher": "Canadian Institute for Cybersecurity, University of New Brunswick",
+  "raw_pcap_downloaded": false,
+  "source_content_executed": false,
+  "traffic_replayed": false
+}

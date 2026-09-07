@@ -1,0 +1,3 @@
+# Model-package hashes are calculated over exact artifact bytes. Do not apply
+# platform line-ending conversion to the reviewed distributed package.
+model_artifacts/behaviour-colab-v1/** -text
