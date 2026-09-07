@@ -39,7 +39,8 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["custodian*", "training*"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

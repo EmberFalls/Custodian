@@ -1,4 +1,4 @@
-"""Group-aware TRAIN/VALIDATION/CALIBRATION/TEST splitting."""
+"""Group-aware and column-aware TRAIN/VALIDATION/CALIBRATION/TEST splitting."""
 
 from __future__ import annotations
 
@@ -29,7 +29,6 @@ def _split(
 
 def grouped_splits(frame: pd.DataFrame, random_state: int = 42) -> DatasetSplits:
     """Create non-overlapping group splits with explicit evaluation roles."""
-
     if "group_id" not in frame or "label" not in frame:
         raise ValueError("prepared data requires group_id and label columns")
     train, held_out = _split(frame, test_size=0.30, random_state=random_state)
@@ -46,7 +45,6 @@ def grouped_splits(frame: pd.DataFrame, random_state: int = 42) -> DatasetSplits
 
 def complete_class_grouped_splits(frame: pd.DataFrame, seed: int = 42):
     """Choose the first seeded group partition with class support in every role.
-
     Selection examines label support only, never model scores or test performance.
     Row-block independence remains a limitation even when groups are disjoint.
     """
@@ -60,4 +58,25 @@ def complete_class_grouped_splits(frame: pd.DataFrame, seed: int = 42):
             return parts, candidate
     raise ValueError(
         "No four-role grouped split contains every class; use richer provenance, not row-random splitting."
+    )
+
+
+def column_splits(frame: pd.DataFrame, split_column: str = "split") -> DatasetSplits:
+    """Build dataset splits from a precomputed role column instead of deriving groups.
+
+    Used by model families whose prepared tables already carry a `split` column
+    (e.g. dns) rather than a `group_id` column suitable for GroupShuffleSplit.
+    """
+    if split_column not in frame.columns:
+        raise ValueError(f"prepared table is missing split column: {split_column!r}")
+    required_roles = ("train", "validation", "calibration", "test")
+    roles = {role: frame[frame[split_column] == role].copy() for role in required_roles}
+    empty_roles = [role for role, part in roles.items() if part.empty]
+    if empty_roles:
+        raise ValueError(f"one or more required splits are empty: {empty_roles}")
+    return DatasetSplits(
+        train=roles["train"],
+        validation=roles["validation"],
+        calibration=roles["calibration"],
+        test=roles["test"],
     )
