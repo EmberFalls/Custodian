@@ -1,0 +1,50 @@
+{
+  "acceptance_targets": {
+    "maximum_false_positive_rate": 0.0005,
+    "minimum_precision": 0.9,
+    "minimum_recall": 0.8
+  },
+  "artifact_format": "custodian.model_package.v1",
+  "candidate_selection": "hist_gradient_boosting",
+  "exported_at": "2026-09-07T07:47:12.742609+00:00",
+  "family": "dns",
+  "model_type": "HistGradientBoostingClassifier",
+  "non_alert_threshold_policy": {
+    "BENIGN_DNS": "0.0 sentinel; benign verdicts never generate alerts"
+  },
+  "schema_version": "dns.v1",
+  "selection_domain": "CTU official training split only; test split excluded",
+  "source_class_weighting": "equal total fit weight per source-family and class stratum",
+  "split_group_counts": {
+    "calibration": 11477,
+    "test": 11477,
+    "train": 80339,
+    "validation": 11477
+  },
+  "split_roles": {
+    "calibration_rows": 56791,
+    "test_rows": 34352,
+    "train_rows": 280972,
+    "validation_rows": 38911
+  },
+  "split_seed": 7077,
+  "training_data_sources": [
+    "benign.csv",
+    "benign_1.csv",
+    "benign_2.csv",
+    "benign_heavy_1.csv",
+    "benign_heavy_2.csv",
+    "heavy_compressed.csv",
+    "heavy_exe.csv",
+    "heavy_image.csv",
+    "heavy_video.csv",
+    "light_audio.csv",
+    "light_compressed.csv",
+    "light_exe.csv",
+    "light_image.csv",
+    "light_text.csv",
+    "light_video.csv",
+    "train_combined_multiclass.csv.gz"
+  ],
+  "validation_target_met": false
+}

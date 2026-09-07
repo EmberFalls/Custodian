@@ -1,0 +1,29 @@
+# Repository-safe full-demo configuration. It matches the local showcase
+# configuration using relative repository paths and contains no secrets.
+models:
+  behaviour:
+    enabled: true
+    trusted: true
+    schema_version: behaviour.v1
+    artifact_path: model_artifacts/behaviour-colab-v1
+    calibrator_path: null
+    thresholds_path: null
+  dns:
+    enabled: true
+    trusted: true
+    schema_version: dns.v1
+    artifact_path: model_artifacts/dns-tunnelling-colab-v1
+    calibrator_path: null
+    thresholds_path: null
+    variants:
+      dga:
+        enabled: true
+        trusted: true
+        artifact_path: model_artifacts/dns-dga-drift26dsn-hgb-v1
+  tls_quic:
+    enabled: true
+    trusted: true
+    schema_version: tls_quic.v1
+    artifact_path: model_artifacts/tls-quic-colab-v1
+    calibrator_path: null
+    thresholds_path: null

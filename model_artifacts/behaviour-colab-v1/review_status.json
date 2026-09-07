@@ -1,0 +1,18 @@
+{
+  "allowed_claim": "CICIDS2017 flow-classification candidate",
+  "forbidden_claims": [
+    "validated C2 detection",
+    "validated exfiltration detection",
+    "live-network accuracy"
+  ],
+  "independent_external_evaluation_completed": false,
+  "internal_attack_recalls": {
+    "BOT_OR_C2_LIKE": 0.9027777777777778,
+    "DDOS": 0.9976979742173112,
+    "RECON": 0.9829545454545454
+  },
+  "minimum_internal_attack_recall": 0.8,
+  "must_not_enable_in_models_yaml": true,
+  "status": "CANDIDATE_INTERNAL_TARGET_MET_EXTERNAL_EVALUATION_REQUIRED",
+  "trusted": false
+}

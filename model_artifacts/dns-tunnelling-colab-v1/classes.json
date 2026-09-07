@@ -1,0 +1,6 @@
+{
+  "classes": [
+    "BENIGN_DNS",
+    "DNS_TUNNEL"
+  ]
+}

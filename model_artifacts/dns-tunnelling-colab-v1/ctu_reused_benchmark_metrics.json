@@ -1,0 +1,62 @@
+{
+  "benchmark_used_for_round2_fit_calibration_selection_or_thresholding": false,
+  "benchmark_was_exposed_in_previous_development_round": true,
+  "class_counts": {
+    "BENIGN_DNS": 236072,
+    "DNS_TUNNEL": 1559
+  },
+  "dns_tunnel_average_precision": 0.7585808060103408,
+  "dns_tunnel_brier_score": 0.0028029952836459244,
+  "dns_tunnel_roc_auc": 0.9950215610284127,
+  "dns_tunnel_threshold": 0.8039048173317539,
+  "eligible_as_fresh_final_evaluation": false,
+  "evaluation_version": "custodian.dns_reused_regression_benchmark.v1",
+  "multiclass_log_loss": 0.019819476718355277,
+  "round2_numerical_targets_met_on_reused_benchmark": false,
+  "rows": 237631,
+  "runtime_acceptance": {
+    "classes": [
+      "BENIGN_DNS",
+      "DNS_TUNNEL"
+    ],
+    "classification_report": {
+      "BENIGN_DNS": {
+        "f1-score": 0.9985469512414367,
+        "precision": 0.997165511327394,
+        "recall": 0.9999322240672337,
+        "support": 236072.0
+      },
+      "DNS_TUNNEL": {
+        "f1-score": 0.7210718635809987,
+        "precision": 0.9823008849557522,
+        "recall": 0.5695958948043618,
+        "support": 1559.0
+      },
+      "accuracy": 0.9971089630561669,
+      "macro avg": {
+        "f1-score": 0.8598094074112177,
+        "precision": 0.9897331981415731,
+        "recall": 0.7847640594357977,
+        "support": 237631.0
+      },
+      "weighted avg": {
+        "f1-score": 0.9967265504449807,
+        "precision": 0.9970679905808861,
+        "recall": 0.9971089630561669,
+        "support": 237631.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        236056,
+        16
+      ],
+      [
+        671,
+        888
+      ]
+    ]
+  },
+  "runtime_false_negative_rate": 0.4304041051956382,
+  "runtime_false_positive_rate": 6.77759327662747e-05
+}

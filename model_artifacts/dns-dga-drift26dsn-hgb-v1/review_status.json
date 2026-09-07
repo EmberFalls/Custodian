@@ -1,0 +1,12 @@
+{
+  "allowed_claim": "DRIFT26DSN binary lexical DGA MVP candidate",
+  "forbidden_claims": [
+    "DGA family attribution",
+    "production DGA detection",
+    "live-network accuracy"
+  ],
+  "independent_external_evaluation_completed": false,
+  "must_not_enable_in_production": true,
+  "status": "CANDIDATE_INTERNAL_EVALUATION_COMPLETE_EXTERNAL_EVALUATION_REQUIRED",
+  "trusted": false
+}

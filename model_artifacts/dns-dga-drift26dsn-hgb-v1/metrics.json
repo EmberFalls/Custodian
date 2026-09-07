@@ -1,0 +1,105 @@
+{
+  "decision_policy": "DGA when calibrated DGA probability reaches the validation-derived threshold; BENIGN otherwise",
+  "external_evaluation_performed": false,
+  "family_holdout": "DGA family groups are disjoint across all split roles",
+  "internal_test": {
+    "accuracy": 0.6226296695754485,
+    "average_precision": 0.5830844342608621,
+    "false_negative_rate": 0.7490174059517125,
+    "false_positive_rate": 0.10923944232522027,
+    "roc_auc": 0.703735266949304,
+    "runtime_acceptance": {
+      "classes": [
+        "BENIGN",
+        "DGA"
+      ],
+      "classification_report": {
+        "BENIGN": {
+          "f1-score": 0.7327890249659808,
+          "precision": 0.622408302865904,
+          "recall": 0.8907605576747797,
+          "support": 29623.0
+        },
+        "DGA": {
+          "f1-score": 0.357934071800347,
+          "precision": 0.6237209302325581,
+          "recall": 0.2509825940482875,
+          "support": 21372.0
+        },
+        "accuracy": 0.6226296695754485,
+        "macro avg": {
+          "f1-score": 0.5453615483831639,
+          "precision": 0.6230646165492311,
+          "recall": 0.5708715758615336,
+          "support": 50995.0
+        },
+        "weighted avg": {
+          "f1-score": 0.5756873471729437,
+          "precision": 0.6229584248794373,
+          "recall": 0.6226296695754485,
+          "support": 50995.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          26387,
+          3236
+        ],
+        [
+          16008,
+          5364
+        ]
+      ]
+    }
+  },
+  "validation": {
+    "accuracy": 0.7936809900174547,
+    "average_precision": 0.8489914776246313,
+    "false_negative_rate": 0.3429273936939543,
+    "false_positive_rate": 0.11263927001024895,
+    "roc_auc": 0.8698762241787147,
+    "runtime_acceptance": {
+      "classes": [
+        "BENIGN",
+        "DGA"
+      ],
+      "classification_report": {
+        "BENIGN": {
+          "f1-score": 0.8361370716510903,
+          "precision": 0.7905045209554384,
+          "recall": 0.887360729989751,
+          "support": 30247.0
+        },
+        "DGA": {
+          "f1-score": 0.721531049817354,
+          "precision": 0.800011739845034,
+          "recall": 0.6570726063060457,
+          "support": 20742.0
+        },
+        "accuracy": 0.7936809900174547,
+        "macro avg": {
+          "f1-score": 0.7788340607342221,
+          "precision": 0.7952581304002362,
+          "recall": 0.7722166681478984,
+          "support": 50989.0
+        },
+        "weighted avg": {
+          "f1-score": 0.7895160729087075,
+          "precision": 0.794371996964146,
+          "recall": 0.7936809900174547,
+          "support": 50989.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          26840,
+          3407
+        ],
+        [
+          7113,
+          13629
+        ]
+      ]
+    }
+  }
+}

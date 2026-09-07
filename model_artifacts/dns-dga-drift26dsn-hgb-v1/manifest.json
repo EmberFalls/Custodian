@@ -1,0 +1,67 @@
+{
+  "artifact_format": "custodian.model_package.v1",
+  "balance_policy": "inverse class-frequency sample weights on training rows",
+  "decision_policy": {
+    "negative_class": "BENIGN",
+    "positive_class": "DGA",
+    "strategy": "positive_threshold"
+  },
+  "detector_variant": "dga",
+  "exported_at": "2026-09-07T13:06:51.786375+00:00",
+  "family": "dns",
+  "feature_set": "lexical",
+  "independent_external_evaluation_completed": false,
+  "model_type": "HistGradientBoostingClassifier",
+  "model_version": "dns-dga-drift26dsn-hgb-v1",
+  "parameters": {
+    "l2_regularization": 1.0,
+    "learning_rate": 0.05,
+    "max_iter": 300,
+    "max_leaf_nodes": 31,
+    "random_state": 42
+  },
+  "schema_version": "dns.v1",
+  "split_roles": {
+    "calibration": {
+      "classes": {
+        "BENIGN": 30071,
+        "DGA": 21577
+      },
+      "dga_families": 6,
+      "groups": 415,
+      "rows": 51648
+    },
+    "test": {
+      "classes": {
+        "BENIGN": 29623,
+        "DGA": 21372
+      },
+      "dga_families": 6,
+      "groups": 415,
+      "rows": 50995
+    },
+    "train": {
+      "classes": {
+        "BENIGN": 210058,
+        "DGA": 151397
+      },
+      "dga_families": 40,
+      "groups": 2909,
+      "rows": 361455
+    },
+    "validation": {
+      "classes": {
+        "BENIGN": 30247,
+        "DGA": 20742
+      },
+      "dga_families": 6,
+      "groups": 415,
+      "rows": 50989
+    }
+  },
+  "split_seed": 7876,
+  "training_data_sources": [
+    "DRIFT26DSN / raw_including_TLD"
+  ],
+  "trusted": false
+}

@@ -34,9 +34,15 @@ def _parser() -> argparse.ArgumentParser:
     replay.add_argument("--mode", choices=[mode.value for mode in ReplayMode], default="fast")
     replay.add_argument("--speed", type=float, default=1.0)
     subcommands.add_parser("safety-status", help="show enforced phase gates")
-    subcommands.add_parser(
+    demo_check = subcommands.add_parser(
         "demo-check",
         help="verify pinned dependencies and configured detector readiness",
+    )
+    demo_check.add_argument(
+        "--require-ready",
+        action="append",
+        choices=("behaviour", "dns", "tls_quic", "dns_dga"),
+        help="require only the named detector; repeat for multiple detectors",
     )
     prepare = subcommands.add_parser(
         "prepare-data", help="prepare DGA data in an approved isolated environment"
@@ -70,7 +76,7 @@ def _demo_constraints(path: Path) -> dict[str, str]:
     return constraints
 
 
-def _run_demo_check(root: Path) -> int:
+def _run_demo_check(root: Path, required_detector_ids: tuple[str, ...] = ()) -> int:
     expected_dependencies = _demo_constraints(root / "constraints-demo.txt")
     dependencies: dict[str, dict[str, str | bool | None]] = {}
     for package, expected in expected_dependencies.items():
@@ -109,13 +115,18 @@ def _run_demo_check(root: Path) -> int:
         if detector.get("enabled") and detector.get("status") == "READY"
     ]
     dependencies_match = all(item["matches"] for item in dependencies.values())
-    all_detectors_ready = len(detectors) == 4 and len(ready_detectors) == 4
+    ready_ids = {str(detector["id"]) for detector in ready_detectors}
+    if required_detector_ids:
+        required_ready = all(detector_id in ready_ids for detector_id in required_detector_ids)
+    else:
+        required_ready = len(detectors) == 4 and len(ready_detectors) == 4
     report = {
-        "ready": dependencies_match and all_detectors_ready,
+        "ready": dependencies_match and required_ready,
         "localhost_only": True,
         "dependencies_match": dependencies_match,
         "dependencies": dependencies,
         "detectors_ready": f"{len(ready_detectors)}/{len(detectors)}",
+        "required_detectors": list(required_detector_ids) or ["all four demo detectors"],
         "artifact_serialization_versions": artifact_serialization_versions,
         "artifact_version_warning_count": len(artifact_runtime_warnings),
         "detectors": detectors,
@@ -155,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     if args.command == "demo-check":
-        return _run_demo_check(root)
+        return _run_demo_check(root, tuple(args.require_ready or ()))
     if args.command in {"prepare-data", "train"}:
         _ensure_training_importable(root)
         from training.commands import prepare_dga, train_dga

@@ -1,0 +1,14 @@
+{
+  "classes": [
+    "BENIGN",
+    "DDOS",
+    "RECON",
+    "BOT_OR_C2_LIKE"
+  ],
+  "source_to_class": {
+    "BENIGN": "BENIGN",
+    "Bot": "BOT_OR_C2_LIKE",
+    "DDoS": "DDOS",
+    "PortScan": "RECON"
+  }
+}

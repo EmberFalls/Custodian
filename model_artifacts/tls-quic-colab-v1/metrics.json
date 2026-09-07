@@ -1,0 +1,177 @@
+{
+  "candidate_validation_reports": {
+    "extra_trees": {
+      "average_precision": 0.9999362164141581,
+      "brier_score": 0.001989707538925843,
+      "false_negative_rate": 0.0026151268745147715,
+      "false_positive_rate": 0.002258586891673059,
+      "log_loss": 0.00830480937552128,
+      "operating_point": {
+        "false_negative_rate": 0.0026151268745147715,
+        "false_positive_rate": 0.002258586891673059,
+        "meets_constraints": true,
+        "precision": 0.9978333742130652,
+        "recall": 0.9973848731254852,
+        "threshold": 0.5215456634330686
+      },
+      "roc_auc": 0.9999333168975462,
+      "runtime_acceptance": {
+        "classes": [
+          "BENIGN_ENCRYPTED",
+          "MALICIOUS_ENCRYPTED_SESSION"
+        ],
+        "classification_report": {
+          "BENIGN_ENCRYPTED": {
+            "f1-score": 0.9975076156189421,
+            "precision": 0.9972739276738936,
+            "recall": 0.997741413108327,
+            "support": 23466.0
+          },
+          "MALICIOUS_ENCRYPTED_SESSION": {
+            "f1-score": 0.9976090732604476,
+            "precision": 0.9978333742130652,
+            "recall": 0.9973848731254852,
+            "support": 24473.0
+          },
+          "accuracy": 0.997559398402136,
+          "macro avg": {
+            "f1-score": 0.9975583444396948,
+            "precision": 0.9975536509434794,
+            "recall": 0.9975631431169061,
+            "support": 47939.0
+          },
+          "weighted avg": {
+            "f1-score": 0.9975594100422834,
+            "precision": 0.9975595267717711,
+            "recall": 0.997559398402136,
+            "support": 47939.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            23413,
+            53
+          ],
+          [
+            64,
+            24409
+          ]
+        ]
+      }
+    },
+    "hist_gradient_boosting": {
+      "average_precision": 0.9999775220938603,
+      "brier_score": 0.0012854970930971596,
+      "false_negative_rate": 0.001757038368814612,
+      "false_positive_rate": 0.0012358305633682774,
+      "log_loss": 0.005267528130162092,
+      "operating_point": {
+        "false_negative_rate": 0.001757038368814612,
+        "false_positive_rate": 0.0012358305633682774,
+        "meets_constraints": true,
+        "precision": 0.9988143423688621,
+        "recall": 0.9982429616311854,
+        "threshold": 0.5676423194264345
+      },
+      "roc_auc": 0.9999764610999093,
+      "runtime_acceptance": {
+        "classes": [
+          "BENIGN_ENCRYPTED",
+          "MALICIOUS_ENCRYPTED_SESSION"
+        ],
+        "classification_report": {
+          "BENIGN_ENCRYPTED": {
+            "f1-score": 0.9984663230094151,
+            "precision": 0.9981686541737649,
+            "recall": 0.9987641694366317,
+            "support": 23466.0
+          },
+          "MALICIOUS_ENCRYPTED_SESSION": {
+            "f1-score": 0.99852857026077,
+            "precision": 0.9988143423688621,
+            "recall": 0.9982429616311854,
+            "support": 24473.0
+          },
+          "accuracy": 0.9984980913243914,
+          "macro avg": {
+            "f1-score": 0.9984974466350925,
+            "precision": 0.9984914982713136,
+            "recall": 0.9985035655339085,
+            "support": 47939.0
+          },
+          "weighted avg": {
+            "f1-score": 0.9984981004136666,
+            "precision": 0.99849827988975,
+            "recall": 0.9984980913243914,
+            "support": 47939.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            23437,
+            29
+          ],
+          [
+            43,
+            24430
+          ]
+        ]
+      }
+    }
+  },
+  "claim_scope": "BCCC-CIRA-CIC-DoHBrw-2020 DoH tunnelling only",
+  "external_evaluation_performed": false,
+  "internal_test": {
+    "average_precision": 0.9999511482029922,
+    "brier_score": 0.0014598581290832485,
+    "false_negative_rate": 0.0026582692622280388,
+    "false_positive_rate": 0.001236199326484505,
+    "log_loss": 0.006110729732963862,
+    "roc_auc": 0.9999417174592826,
+    "runtime_acceptance": {
+      "classes": [
+        "BENIGN_ENCRYPTED",
+        "MALICIOUS_ENCRYPTED_SESSION"
+      ],
+      "classification_report": {
+        "BENIGN_ENCRYPTED": {
+          "f1-score": 0.9979980406355156,
+          "precision": 0.9972334539263673,
+          "recall": 0.9987638006735154,
+          "support": 23459.0
+        },
+        "MALICIOUS_ENCRYPTED_SESSION": {
+          "f1-score": 0.9980764508471801,
+          "precision": 0.9988122542595019,
+          "recall": 0.997341730737772,
+          "support": 24452.0
+        },
+        "accuracy": 0.9980380288451504,
+        "macro avg": {
+          "f1-score": 0.9980372457413478,
+          "precision": 0.9980228540929346,
+          "recall": 0.9980527657056437,
+          "support": 47911.0
+        },
+        "weighted avg": {
+          "f1-score": 0.9980380583036007,
+          "precision": 0.9980392151449978,
+          "recall": 0.9980380288451504,
+          "support": 47911.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          23430,
+          29
+        ],
+        [
+          65,
+          24387
+        ]
+      ]
+    }
+  },
+  "selected_candidate": "hist_gradient_boosting",
+  "selection_basis": "validation-only calibrated operating point"
+}

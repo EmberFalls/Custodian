@@ -1,0 +1,8 @@
+{
+  "allowed_claim": "experimental DoH-tunnel encrypted-session candidate",
+  "forbidden_claim": "general malicious TLS or QUIC detection",
+  "independent_external_evaluation_completed": false,
+  "must_not_enable_in_models_yaml": true,
+  "status": "CANDIDATE_INTERNAL_EVALUATION_COMPLETE_EXTERNAL_EVALUATION_REQUIRED",
+  "trusted": false
+}

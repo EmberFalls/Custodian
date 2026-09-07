@@ -1,0 +1,444 @@
+{
+  "candidate_validation_reports": {
+    "extra_trees": {
+      "average_precision": 0.909142423950773,
+      "negative_prevalence_correction": 8.0,
+      "operating_point": {
+        "false_negative_rate": 0.352755905511811,
+        "false_positive_rate": 0.00042268999915462,
+        "meets_constraints": false,
+        "precision": 0.9113082039911308,
+        "recall": 0.647244094488189,
+        "threshold": 0.8417660821636513
+      },
+      "operating_point_source": "official CTU training split validation partition",
+      "roc_auc": 0.9905940491904655,
+      "validation_by_source_family": {
+        "bccc_dns_exf": {
+          "classes": [
+            "BENIGN_DNS",
+            "DNS_TUNNEL"
+          ],
+          "classification_report": {
+            "BENIGN_DNS": {
+              "f1-score": 0.9988994748923058,
+              "precision": 0.9978013694327533,
+              "recall": 1.0,
+              "support": 15884.0
+            },
+            "DNS_TUNNEL": {
+              "f1-score": 0.9983405243942914,
+              "precision": 1.0,
+              "recall": 0.9966865473823724,
+              "support": 10563.0
+            },
+            "accuracy": 0.9986765984799788,
+            "macro avg": {
+              "f1-score": 0.9986199996432986,
+              "precision": 0.9989006847163766,
+              "recall": 0.9983432736911861,
+              "support": 26447.0
+            },
+            "weighted avg": {
+              "f1-score": 0.9986762286220096,
+              "precision": 0.9986795081510135,
+              "recall": 0.9986765984799788,
+              "support": 26447.0
+            }
+          },
+          "confusion_matrix": [
+            [
+              15884,
+              0
+            ],
+            [
+              35,
+              10528
+            ]
+          ]
+        },
+        "ctu_dns_threats_train": {
+          "classes": [
+            "BENIGN_DNS",
+            "DNS_TUNNEL"
+          ],
+          "classification_report": {
+            "BENIGN_DNS": {
+              "f1-score": 0.9904091803827951,
+              "precision": 0.9814077025232404,
+              "recall": 0.9995773100008454,
+              "support": 11829.0
+            },
+            "DNS_TUNNEL": {
+              "f1-score": 0.7821122740247384,
+              "precision": 0.9879807692307693,
+              "recall": 0.647244094488189,
+              "support": 635.0
+            },
+            "accuracy": 0.9816270860077022,
+            "macro avg": {
+              "f1-score": 0.8862607272037668,
+              "precision": 0.9846942358770048,
+              "recall": 0.8234107022445172,
+              "support": 12464.0
+            },
+            "weighted avg": {
+              "f1-score": 0.9797971348486676,
+              "precision": 0.9817425787555318,
+              "recall": 0.9816270860077022,
+              "support": 12464.0
+            }
+          },
+          "confusion_matrix": [
+            [
+              11824,
+              5
+            ],
+            [
+              224,
+              411
+            ]
+          ]
+        }
+      }
+    },
+    "hist_gradient_boosting": {
+      "average_precision": 0.9246931128562877,
+      "negative_prevalence_correction": 8.0,
+      "operating_point": {
+        "false_negative_rate": 0.3417322834645669,
+        "false_positive_rate": 0.00042268999915462,
+        "meets_constraints": false,
+        "precision": 0.9126637554585153,
+        "recall": 0.658267716535433,
+        "threshold": 0.8039048173317539
+      },
+      "operating_point_source": "official CTU training split validation partition",
+      "roc_auc": 0.9929244356755684,
+      "validation_by_source_family": {
+        "bccc_dns_exf": {
+          "classes": [
+            "BENIGN_DNS",
+            "DNS_TUNNEL"
+          ],
+          "classification_report": {
+            "BENIGN_DNS": {
+              "f1-score": 0.9992135644405298,
+              "precision": 0.998553913863565,
+              "recall": 0.9998740871317049,
+              "support": 15884.0
+            },
+            "DNS_TUNNEL": {
+              "f1-score": 0.9988154465766406,
+              "precision": 0.9998102826788086,
+              "recall": 0.9978225882798447,
+              "support": 10563.0
+            },
+            "accuracy": 0.9990547131999848,
+            "macro avg": {
+              "f1-score": 0.9990145055085852,
+              "precision": 0.9991820982711868,
+              "recall": 0.9988483377057749,
+              "support": 26447.0
+            },
+            "weighted avg": {
+              "f1-score": 0.9990545551390491,
+              "precision": 0.9990557108082248,
+              "recall": 0.9990547131999848,
+              "support": 26447.0
+            }
+          },
+          "confusion_matrix": [
+            [
+              15882,
+              2
+            ],
+            [
+              23,
+              10540
+            ]
+          ]
+        },
+        "ctu_dns_threats_train": {
+          "classes": [
+            "BENIGN_DNS",
+            "DNS_TUNNEL"
+          ],
+          "classification_report": {
+            "BENIGN_DNS": {
+              "f1-score": 0.9906996229576874,
+              "precision": 0.9819782410098828,
+              "recall": 0.9995773100008454,
+              "support": 11829.0
+            },
+            "DNS_TUNNEL": {
+              "f1-score": 0.7901701323251418,
+              "precision": 0.9881796690307328,
+              "recall": 0.658267716535433,
+              "support": 635.0
+            },
+            "accuracy": 0.9821887034659821,
+            "macro avg": {
+              "f1-score": 0.8904348776414146,
+              "precision": 0.9850789550203078,
+              "recall": 0.8289225132681393,
+              "support": 12464.0
+            },
+            "weighted avg": {
+              "f1-score": 0.9804833018287026,
+              "precision": 0.9822941834676203,
+              "recall": 0.9821887034659821,
+              "support": 12464.0
+            }
+          },
+          "confusion_matrix": [
+            [
+              11824,
+              5
+            ],
+            [
+              217,
+              418
+            ]
+          ]
+        }
+      }
+    },
+    "random_forest": {
+      "average_precision": 0.917300622576436,
+      "negative_prevalence_correction": 8.0,
+      "operating_point": {
+        "false_negative_rate": 0.3700787401574803,
+        "false_positive_rate": 0.000253613999492772,
+        "meets_constraints": false,
+        "precision": 0.9433962264150944,
+        "recall": 0.6299212598425197,
+        "threshold": 0.9015191696846916
+      },
+      "operating_point_source": "official CTU training split validation partition",
+      "roc_auc": 0.9916819267741164,
+      "validation_by_source_family": {
+        "bccc_dns_exf": {
+          "classes": [
+            "BENIGN_DNS",
+            "DNS_TUNNEL"
+          ],
+          "classification_report": {
+            "BENIGN_DNS": {
+              "f1-score": 0.9988366609023739,
+              "precision": 0.9976760253752905,
+              "recall": 1.0,
+              "support": 15884.0
+            },
+            "DNS_TUNNEL": {
+              "f1-score": 0.9982455308454644,
+              "precision": 1.0,
+              "recall": 0.9964972072327937,
+              "support": 10563.0
+            },
+            "accuracy": 0.9986009755359776,
+            "macro avg": {
+              "f1-score": 0.9985410958739191,
+              "precision": 0.9988380126876453,
+              "recall": 0.9982486036163969,
+              "support": 26447.0
+            },
+            "weighted avg": {
+              "f1-score": 0.9986005620332722,
+              "precision": 0.9986042268333314,
+              "recall": 0.9986009755359776,
+              "support": 26447.0
+            }
+          },
+          "confusion_matrix": [
+            [
+              15884,
+              0
+            ],
+            [
+              37,
+              10526
+            ]
+          ]
+        },
+        "ctu_dns_threats_train": {
+          "classes": [
+            "BENIGN_DNS",
+            "DNS_TUNNEL"
+          ],
+          "classification_report": {
+            "BENIGN_DNS": {
+              "f1-score": 0.9900376726663876,
+              "precision": 0.9805157117983584,
+              "recall": 0.9997463860005072,
+              "support": 11829.0
+            },
+            "DNS_TUNNEL": {
+              "f1-score": 0.7707129094412332,
+              "precision": 0.9925558312655087,
+              "recall": 0.6299212598425197,
+              "support": 635.0
+            },
+            "accuracy": 0.9809050064184852,
+            "macro avg": {
+              "f1-score": 0.8803752910538104,
+              "precision": 0.9865357715319336,
+              "recall": 0.8148338229215135,
+              "support": 12464.0
+            },
+            "weighted avg": {
+              "f1-score": 0.978863793923771,
+              "precision": 0.9811291164727519,
+              "recall": 0.9809050064184852,
+              "support": 12464.0
+            }
+          },
+          "confusion_matrix": [
+            [
+              11826,
+              3
+            ],
+            [
+              235,
+              400
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "external_evaluation_performed": false,
+  "internal_test": {
+    "classes": [
+      "BENIGN_DNS",
+      "DNS_TUNNEL"
+    ],
+    "classification_report": {
+      "BENIGN_DNS": {
+        "f1-score": 0.993914560428415,
+        "precision": 0.9879824172278905,
+        "recall": 0.9999183706787478,
+        "support": 24501.0
+      },
+      "DNS_TUNNEL": {
+        "f1-score": 0.9845408636504174,
+        "precision": 0.9997906855049712,
+        "recall": 0.9697492640341082,
+        "support": 9851.0
+      },
+      "accuracy": 0.9912668840242198,
+      "macro avg": {
+        "f1-score": 0.9892277120394162,
+        "precision": 0.9938865513664308,
+        "recall": 0.9848338173564279,
+        "support": 34352.0
+      },
+      "weighted avg": {
+        "f1-score": 0.9912264989775518,
+        "precision": 0.9913686320275388,
+        "recall": 0.9912668840242198,
+        "support": 34352.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        24499,
+        2
+      ],
+      [
+        298,
+        9553
+      ]
+    ]
+  },
+  "internal_test_by_source_family": {
+    "bccc_dns_exf": {
+      "classes": [
+        "BENIGN_DNS",
+        "DNS_TUNNEL"
+      ],
+      "classification_report": {
+        "BENIGN_DNS": {
+          "f1-score": 0.9980214920277767,
+          "precision": 0.9961279330906838,
+          "recall": 0.9999222636815921,
+          "support": 12864.0
+        },
+        "DNS_TUNNEL": {
+          "f1-score": 0.9972050200032883,
+          "precision": 0.9998900978129465,
+          "recall": 0.9945343244425011,
+          "support": 9148.0
+        },
+        "accuracy": 0.9976830819552971,
+        "macro avg": {
+          "f1-score": 0.9976132560155324,
+          "precision": 0.9980090154518151,
+          "recall": 0.9972282940620466,
+          "support": 22012.0
+        },
+        "weighted avg": {
+          "f1-score": 0.9976821731980464,
+          "precision": 0.9976914567541065,
+          "recall": 0.9976830819552971,
+          "support": 22012.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          12863,
+          1
+        ],
+        [
+          50,
+          9098
+        ]
+      ]
+    },
+    "ctu_dns_threats_train": {
+      "classes": [
+        "BENIGN_DNS",
+        "DNS_TUNNEL"
+      ],
+      "classification_report": {
+        "BENIGN_DNS": {
+          "f1-score": 0.9894137154032566,
+          "precision": 0.979131605520027,
+          "recall": 0.9999140671994501,
+          "support": 11637.0
+        },
+        "DNS_TUNNEL": {
+          "f1-score": 0.7851596203623814,
+          "precision": 0.9978070175438597,
+          "recall": 0.647226173541963,
+          "support": 703.0
+        },
+        "accuracy": 0.9798217179902755,
+        "macro avg": {
+          "f1-score": 0.8872866678828191,
+          "precision": 0.9884693115319434,
+          "recall": 0.8235701203707065,
+          "support": 12340.0
+        },
+        "weighted avg": {
+          "f1-score": 0.977777521820296,
+          "precision": 0.9801955289116603,
+          "recall": 0.9798217179902755,
+          "support": 12340.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          11636,
+          1
+        ],
+        [
+          248,
+          455
+        ]
+      ]
+    }
+  },
+  "selected_candidate": "hist_gradient_boosting",
+  "selection_basis": "validation-only runtime operating point"
+}

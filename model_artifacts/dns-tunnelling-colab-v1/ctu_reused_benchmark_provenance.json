@@ -1,0 +1,54 @@
+{
+  "adaptation": {
+    "benign_sample_modulus": 1,
+    "dns_resolution_performed": false,
+    "excluded_dga_rows": 383072,
+    "labels": {
+      "BENIGN_DNS": 236072,
+      "DNS_TUNNEL": 1559
+    },
+    "payload_execution_performed": false,
+    "placeholder_timestamp_used_only_for_non_feature_ids": true,
+    "prepared_rows": 237631,
+    "query_types_available": false,
+    "raw_domain_column_used": true,
+    "rejected_rows": 0,
+    "sampled_out_benign_rows": 0,
+    "sha256": "028fd97a4c498e8b6f22b93c2f804e4e0f3afe0c15ff5b3e71f9a12d0ddd4783",
+    "source_name": "test_combined_multiclass.csv.gz",
+    "temporal_history_available": false,
+    "third_party_engineered_columns_used": false,
+    "timestamps_available": false,
+    "traffic_replay_performed": false
+  },
+  "candidate_selection_accessed_rows": false,
+  "class_counts": {
+    "BENIGN_DNS": 236072,
+    "DNS_TUNNEL": 1559
+  },
+  "dataset": "DNS Threats Dataset, Version 1 \u2014 fixed test split",
+  "doi": "10.5281/zenodo.6508640",
+  "download": {
+    "archive_name": "test_combined_multiclass.csv.gz",
+    "dataset_member_executed": false,
+    "doi": "10.5281/zenodo.6508640",
+    "download_url": "https://zenodo.org/records/6508640/files/test_combined_multiclass.csv.gz?download=1",
+    "header": [
+      "domain",
+      "class"
+    ],
+    "published_md5": "ce52df239c4245ffaa15c642b8b0b625",
+    "record_id": "6508640",
+    "selection_locked_before_model_fit": true,
+    "sha256": "028fd97a4c498e8b6f22b93c2f804e4e0f3afe0c15ff5b3e71f9a12d0ddd4783",
+    "size_bytes": 6326259,
+    "verified_md5": "ce52df239c4245ffaa15c642b8b0b625"
+  },
+  "feature_schema_version": "dns.v1",
+  "group_count": 237624,
+  "manifest_version": "custodian.dns_fresh_external_holdout.v1",
+  "prepared_rows": 237631,
+  "publisher": "Palau et al.; Zenodo",
+  "selection_locked_before_model_fit": true,
+  "shared_extractor": "custodian.features.dns.DNSFeatureExtractor"
+}

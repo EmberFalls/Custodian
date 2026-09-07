@@ -1,0 +1,435 @@
+{
+  "class_counts": {
+    "BENIGN_DNS": 217776,
+    "DNS_TUNNEL": 193250
+  },
+  "ctu_test_split_used_for_fit_calibration_or_selection": false,
+  "development_sources": [
+    {
+      "adaptation": [
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 24948,
+          "labels": {
+            "BENIGN_DNS": 15884
+          },
+          "prepared_rows": 15884,
+          "query_type_unavailable_rows": 15884,
+          "rejected_rows": 9064,
+          "sha256": "64f5da5f57bcae7cf6bda3c1ce9db20ee32844fe3fb69cf385676fe63d768757",
+          "source_name": "benign.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 53754,
+          "labels": {
+            "BENIGN_DNS": 32702
+          },
+          "prepared_rows": 32702,
+          "query_type_unavailable_rows": 32702,
+          "rejected_rows": 21052,
+          "sha256": "ddc039b326a0cfe839c4e599e7c3e1dc27b310d2223b6141bf008a2f39279998",
+          "source_name": "benign_1.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 37180,
+          "labels": {
+            "BENIGN_DNS": 24469
+          },
+          "prepared_rows": 24469,
+          "query_type_unavailable_rows": 24469,
+          "rejected_rows": 12711,
+          "sha256": "3656d5017653104333ec9c6ff272d2f9f7ee5043a03cd5a4ece73219cc18e25f",
+          "source_name": "benign_2.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 21664,
+          "labels": {
+            "BENIGN_DNS": 12864
+          },
+          "prepared_rows": 12864,
+          "query_type_unavailable_rows": 12864,
+          "rejected_rows": 8800,
+          "sha256": "73c17dcbc5f80436531834f9c405a48f222a1e5d890f0430d852844afd727304",
+          "source_name": "benign_heavy_1.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 21989,
+          "labels": {
+            "BENIGN_DNS": 13640
+          },
+          "prepared_rows": 13640,
+          "query_type_unavailable_rows": 13640,
+          "rejected_rows": 8349,
+          "sha256": "bb830a580150c4a7d608f7b0acaf6f543e3d6f24602d6098f70590ed18f23f64",
+          "source_name": "benign_heavy_2.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 45136,
+          "labels": {
+            "DNS_TUNNEL": 30637
+          },
+          "prepared_rows": 30637,
+          "query_type_unavailable_rows": 30637,
+          "rejected_rows": 14499,
+          "sha256": "97e7993d13790173612525a9de4f6cd862f36c562cce3e6402ac0316182f78a9",
+          "source_name": "heavy_compressed.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 53385,
+          "labels": {
+            "DNS_TUNNEL": 40567
+          },
+          "prepared_rows": 40567,
+          "query_type_unavailable_rows": 40567,
+          "rejected_rows": 12818,
+          "sha256": "1824bdc31c2ba423794a9b47ab4dc826abfb7517361aa036620688213d5ba6ab",
+          "source_name": "heavy_exe.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 56702,
+          "labels": {
+            "DNS_TUNNEL": 42035
+          },
+          "prepared_rows": 42035,
+          "query_type_unavailable_rows": 42035,
+          "rejected_rows": 14667,
+          "sha256": "9e88794fbbe105f8d67b7394b98d2fa820df0b41b566471429568e4af7ea0e33",
+          "source_name": "heavy_image.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 58846,
+          "labels": {
+            "DNS_TUNNEL": 44804
+          },
+          "prepared_rows": 44804,
+          "query_type_unavailable_rows": 44804,
+          "rejected_rows": 14042,
+          "sha256": "1bdbdbb42b932873224fb33605bc60333288235d47f91e82e7b3dedfa71eccc1",
+          "source_name": "heavy_video.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 11100,
+          "labels": {
+            "DNS_TUNNEL": 4317
+          },
+          "prepared_rows": 4317,
+          "query_type_unavailable_rows": 4317,
+          "rejected_rows": 6783,
+          "sha256": "83b243e23f5ccf8b79d18313f6b1220781e4448d34f52525a25a77d5675ce86b",
+          "source_name": "light_audio.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 14356,
+          "labels": {
+            "DNS_TUNNEL": 10075
+          },
+          "prepared_rows": 10075,
+          "query_type_unavailable_rows": 10075,
+          "rejected_rows": 4281,
+          "sha256": "13327b8c00e8b8298ed99a12eba55a9d51eaa7c77902cde7340bbd42202e590e",
+          "source_name": "light_compressed.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 9447,
+          "labels": {
+            "DNS_TUNNEL": 6564
+          },
+          "prepared_rows": 6564,
+          "query_type_unavailable_rows": 6564,
+          "rejected_rows": 2883,
+          "sha256": "8310d0559ea5bebe9dfc95f6adf761aae088e3e9a6309cf515abd384e5c5d772",
+          "source_name": "light_exe.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 779,
+          "labels": {
+            "DNS_TUNNEL": 488
+          },
+          "prepared_rows": 488,
+          "query_type_unavailable_rows": 488,
+          "rejected_rows": 291,
+          "sha256": "6fd7cb0fd67b143de7625ceda884c2e9a5447e58e81f61f8c651807a01f9860e",
+          "source_name": "light_image.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 4212,
+          "labels": {
+            "DNS_TUNNEL": 2491
+          },
+          "prepared_rows": 2491,
+          "query_type_unavailable_rows": 2491,
+          "rejected_rows": 1721,
+          "sha256": "c46de08b842514e5d4159909b220e13eeebb4af973534fa1b6377aa69bc85773",
+          "source_name": "light_text.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        },
+        {
+          "domain_resolution_performed": false,
+          "input_rows": 6890,
+          "labels": {
+            "DNS_TUNNEL": 4831
+          },
+          "prepared_rows": 4831,
+          "query_type_unavailable_rows": 4831,
+          "rejected_rows": 2059,
+          "sha256": "165f1bdc1edf48612d413c42dedc4a74ce8ed0ca08c45cdd52a698551b159306",
+          "source_name": "light_video.csv",
+          "third_party_engineered_columns_used": false,
+          "unique_groups": 1
+        }
+      ],
+      "class_counts": {
+        "BENIGN_DNS": 99559,
+        "DNS_TUNNEL": 186809
+      },
+      "dataset": "BCCC-CIC-Bell-DNS-2024 / BCCC-CIC-Bell-DNS-EXF",
+      "dns_resolution_performed": false,
+      "downloads": [
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/benign.csv",
+          "name": "benign.csv",
+          "sha256": "64f5da5f57bcae7cf6bda3c1ce9db20ee32844fe3fb69cf385676fe63d768757",
+          "size_bytes": 29439997
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/benign_1.csv",
+          "name": "benign_1.csv",
+          "sha256": "ddc039b326a0cfe839c4e599e7c3e1dc27b310d2223b6141bf008a2f39279998",
+          "size_bytes": 61606461
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/benign_2.csv",
+          "name": "benign_2.csv",
+          "sha256": "3656d5017653104333ec9c6ff272d2f9f7ee5043a03cd5a4ece73219cc18e25f",
+          "size_bytes": 43592328
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/benign_heavy_1.csv",
+          "name": "benign_heavy_1.csv",
+          "sha256": "73c17dcbc5f80436531834f9c405a48f222a1e5d890f0430d852844afd727304",
+          "size_bytes": 25735266
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/benign_heavy_2.csv",
+          "name": "benign_heavy_2.csv",
+          "sha256": "bb830a580150c4a7d608f7b0acaf6f543e3d6f24602d6098f70590ed18f23f64",
+          "size_bytes": 25734814
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/heavy_compressed.csv",
+          "name": "heavy_compressed.csv",
+          "sha256": "97e7993d13790173612525a9de4f6cd862f36c562cce3e6402ac0316182f78a9",
+          "size_bytes": 71075627
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/heavy_exe.csv",
+          "name": "heavy_exe.csv",
+          "sha256": "1824bdc31c2ba423794a9b47ab4dc826abfb7517361aa036620688213d5ba6ab",
+          "size_bytes": 85871793
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/heavy_image.csv",
+          "name": "heavy_image.csv",
+          "sha256": "9e88794fbbe105f8d67b7394b98d2fa820df0b41b566471429568e4af7ea0e33",
+          "size_bytes": 90993921
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/heavy_video.csv",
+          "name": "heavy_video.csv",
+          "sha256": "1bdbdbb42b932873224fb33605bc60333288235d47f91e82e7b3dedfa71eccc1",
+          "size_bytes": 94839898
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/light_audio.csv",
+          "name": "light_audio.csv",
+          "sha256": "83b243e23f5ccf8b79d18313f6b1220781e4448d34f52525a25a77d5675ce86b",
+          "size_bytes": 15514706
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/light_compressed.csv",
+          "name": "light_compressed.csv",
+          "sha256": "13327b8c00e8b8298ed99a12eba55a9d51eaa7c77902cde7340bbd42202e590e",
+          "size_bytes": 22724202
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/light_exe.csv",
+          "name": "light_exe.csv",
+          "sha256": "8310d0559ea5bebe9dfc95f6adf761aae088e3e9a6309cf515abd384e5c5d772",
+          "size_bytes": 14845623
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/light_image.csv",
+          "name": "light_image.csv",
+          "sha256": "6fd7cb0fd67b143de7625ceda884c2e9a5447e58e81f61f8c651807a01f9860e",
+          "size_bytes": 1197839
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/light_text.csv",
+          "name": "light_text.csv",
+          "sha256": "c46de08b842514e5d4159909b220e13eeebb4af973534fa1b6377aa69bc85773",
+          "size_bytes": 6365630
+        },
+        {
+          "dataset_member": "BCCC-CIC-Bell-DNS-2024/BCCC-CIC-Bell-DNS-EXF/light_video.csv",
+          "name": "light_video.csv",
+          "sha256": "165f1bdc1edf48612d413c42dedc4a74ce8ed0ca08c45cdd52a698551b159306",
+          "size_bytes": 10871955
+        }
+      ],
+      "feature_family": "dns",
+      "feature_schema_version": "dns.v1",
+      "group_count": 15,
+      "kaggle_handle": "bcccdatasets/malicious-dns-and-attacks-bccc-cic-bell-dns-2024",
+      "kaggle_page": "https://www.kaggle.com/datasets/bcccdatasets/malicious-dns-and-attacks-bccc-cic-bell-dns-2024",
+      "license_reported_by_kaggle": "MIT",
+      "manifest_version": "custodian.dns_training_data.v1",
+      "official_page": "https://www.yorku.ca/research/bccc/ucs-technical/cybersecurity-datasets-cds/malicious-dns-and-attacks-bccc-cic-bell-dns-2024/",
+      "payload_execution_performed": false,
+      "prepared_rows": 286368,
+      "publisher": "Behaviour-Centric Cybersecurity Center (BCCC), York University",
+      "selected_files": [
+        "benign.csv",
+        "benign_1.csv",
+        "benign_2.csv",
+        "benign_heavy_1.csv",
+        "benign_heavy_2.csv",
+        "heavy_compressed.csv",
+        "heavy_exe.csv",
+        "heavy_image.csv",
+        "heavy_video.csv",
+        "light_audio.csv",
+        "light_compressed.csv",
+        "light_exe.csv",
+        "light_image.csv",
+        "light_text.csv",
+        "light_video.csv"
+      ],
+      "shared_extractor": "custodian.features.dns.DNSFeatureExtractor",
+      "third_party_engineered_columns_used": false,
+      "traffic_replay_performed": false
+    },
+    {
+      "adaptation": {
+        "benign_sample_modulus": 8,
+        "dns_resolution_performed": false,
+        "excluded_dga_rows": 1532263,
+        "labels": {
+          "BENIGN_DNS": 118217,
+          "DNS_TUNNEL": 6441
+        },
+        "payload_execution_performed": false,
+        "placeholder_timestamp_used_only_for_non_feature_ids": true,
+        "prepared_rows": 124658,
+        "query_types_available": false,
+        "raw_domain_column_used": true,
+        "rejected_rows": 0,
+        "sampled_out_benign_rows": 825889,
+        "sha256": "9bc7c1e53d67c2b5ad9352a45bc415107521da10e96572d0ed5e4586b80e4de9",
+        "source_name": "train_combined_multiclass.csv.gz",
+        "temporal_history_available": false,
+        "third_party_engineered_columns_used": false,
+        "timestamps_available": false,
+        "traffic_replay_performed": false
+      },
+      "class_counts": {
+        "BENIGN_DNS": 118217,
+        "DNS_TUNNEL": 6441
+      },
+      "dataset": "DNS Threats Dataset, Version 1 \u2014 official training split",
+      "doi": "10.5281/zenodo.6508640",
+      "download": {
+        "archive_name": "train_combined_multiclass.csv.gz",
+        "dataset_member_executed": false,
+        "doi": "10.5281/zenodo.6508640",
+        "download_url": "https://zenodo.org/records/6508640/files/train_combined_multiclass.csv.gz?download=1",
+        "header": [
+          "domain",
+          "class"
+        ],
+        "official_publisher_split_role": "train",
+        "published_md5": "c30a49c6f362e0c2dffe3881504a6825",
+        "record_id": "6508640",
+        "sha256": "9bc7c1e53d67c2b5ad9352a45bc415107521da10e96572d0ed5e4586b80e4de9",
+        "size_bytes": 23030305,
+        "verified_md5": "c30a49c6f362e0c2dffe3881504a6825"
+      },
+      "feature_schema_version": "dns.v1",
+      "group_count": 114755,
+      "manifest_version": "custodian.dns_development_source.v2",
+      "prepared_rows": 124658,
+      "previously_published_test_split_used_for_fit": false,
+      "publisher": "Palau et al.; Zenodo",
+      "raw_domain_column_used": true,
+      "shared_extractor": "custodian.features.dns.DNSFeatureExtractor",
+      "third_party_engineered_columns_used": false
+    }
+  ],
+  "dns_resolution_performed": false,
+  "feature_schema_version": "dns.v1",
+  "google_drive_mounted": false,
+  "group_count": 114770,
+  "manifest_version": "custodian.dns_round2_development.v1",
+  "model_input_policy": "universally observable lexical feature subset only",
+  "payload_execution_performed": false,
+  "prepared_rows": 411026,
+  "shared_extractor": "custodian.features.dns.DNSFeatureExtractor",
+  "source_counts": {
+    "benign.csv": 15884,
+    "benign_1.csv": 32702,
+    "benign_2.csv": 24469,
+    "benign_heavy_1.csv": 12864,
+    "benign_heavy_2.csv": 13640,
+    "heavy_compressed.csv": 30637,
+    "heavy_exe.csv": 40567,
+    "heavy_image.csv": 42035,
+    "heavy_video.csv": 44804,
+    "light_audio.csv": 4317,
+    "light_compressed.csv": 10075,
+    "light_exe.csv": 6564,
+    "light_image.csv": 488,
+    "light_text.csv": 2491,
+    "light_video.csv": 4831,
+    "train_combined_multiclass.csv.gz": 124658
+  },
+  "traffic_replay_performed": false
+}

@@ -1,0 +1,23 @@
+{
+  "columns": [
+    "feature__flow_duration_seconds",
+    "feature__packets_outbound",
+    "feature__packets_inbound",
+    "feature__packet_count",
+    "feature__payload_bytes_outbound",
+    "feature__payload_bytes_inbound",
+    "feature__payload_bytes_total",
+    "feature__payload_packet_size_mean",
+    "feature__payload_packet_size_variance",
+    "feature__inter_arrival_mean",
+    "feature__inter_arrival_variance",
+    "feature__payload_directional_ratio",
+    "feature__flow_packets_per_second",
+    "feature__flow_payload_bytes_per_second"
+  ],
+  "definition_id": "cicids2017-payload-flow-v1",
+  "family": "behaviour",
+  "preprocessing": "Shared flow_model_values; native NaN; payload bytes, seconds, population variances; first-sender direction.",
+  "runtime_only_evidence": "Temporal rates, diversity, fan-out, recurrence, history and capability flags; these are not classifier inputs.",
+  "schema_version": "behaviour.v1"
+}

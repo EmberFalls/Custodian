@@ -1,0 +1,11 @@
+{
+  "calibrator.joblib": "603e21bcab08d20a3b4a53a38ff0eaf3eacd30547486b43cc1d6f53485393f78",
+  "class_mapping.json": "61fd52b577def58feccb0beace7d22613354a40c48281cdb653fc75376f6e942",
+  "download_provenance.json": "0f3e20493a1b43d4953547bc2e3b4b93c1961526294daf1e25966dcf64af482b",
+  "feature_schema.json": "8ea97666901b71ec42fbe21b265b3aa53d385bce921e44394e2c74ec978ef089",
+  "manifest.json": "1bb1ae77731cc4615ef1b9ec5d92ff0af693ce0218a085eff556013baf71bfeb",
+  "metrics.json": "db66d74e70253fcdedfd91daab6ab5459ed994727aed2a907e9cddd97bfd1075",
+  "model.json": "eba3befe680af9ffc27432833ed9874ac924f216fc3c506b44c177302c03c232",
+  "review_status.json": "35b46f1f4e23a4f99aff1b14abc4dac8ad05af36b63cebcff551ec17ad24cbf6",
+  "thresholds.json": "1bf8400c07611ebde3e5dd029b9970ff642d38cc2d77de90077ba8546a193ae4"
+}

@@ -12,7 +12,7 @@ The reusable hosted-Colab environment workflow is documented in [docs/colab-trai
 - API and dashboard are localhost-only.
 - Offline capture replay means reading a file into the local analysis pipeline; it never transmits captured packets.
 - Model artifacts are untrusted by default and are not deserialized during startup.
-- The local showcase override can load separately stored, hash-verified Behaviour and TLS/QUIC candidates without weakening the repository default.
+- The reviewed Behaviour, DNS-tunnelling, DNS DGA, and TLS/QUIC model packages are distributed with the repository for local inference.
 - The DNS-tunnelling candidate can be loaded through the explicit local showcase override.
 - DNS DGA has a safety-gated HGB preparation/training/integration path and a locally exported DRIFT26DSN MVP candidate; it remains disabled by default and is enabled only by the operator-approved local demo configuration.
 - Model training and passive live-interface testing are intentionally deferred until the user completes and approves the documented isolation checklist.
@@ -39,9 +39,30 @@ Open <http://127.0.0.1:5173/>. Put only an authorized `.cap`, `.pcap`, or `.pcap
 
 Stop each server with `Ctrl+C` in the terminal that started it. PyCharm needs no special web setting: select `E:\Python\python.exe` as the interpreter and use the repository root as the backend working directory.
 
-### Local showcase with the verified model candidates
+### Full four-model demo from a fresh clone
 
-The model archives and `configs/models.demo.local.yaml` are intentionally ignored by Git. On the prepared showcase laptop, start the backend with the isolated project environment and explicit local override:
+The repository contains the reviewed `behaviour-colab-v1`,
+`dns-tunnelling-colab-v1`, `dns-dga-drift26dsn-hgb-v1`, and
+`tls-quic-colab-v1` packages under `model_artifacts/`. They are hash-verified
+before loading and use only relative repository paths through
+`configs/models.demo.yaml`.
+
+```powershell
+Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
+$env:CUSTODIAN_MODELS_CONFIG = 'models.demo.yaml'
+& '.\.venv\Scripts\python.exe' -m custodian.cli demo-check
+& '.\.venv\Scripts\python.exe' -m uvicorn custodian.api.app:app --host 127.0.0.1 --port 8000
+```
+
+The readiness report must show all four configured detectors as `READY`.
+CICIDS2017 is not needed to run these trained models; it is needed only for
+approved retraining.
+
+### Local showcase with the additional model candidates
+
+`configs/models.demo.local.yaml` remains ignored for machine-specific local
+overrides. It is not needed for a standard clone because the tracked
+`configs/models.demo.yaml` is the full showcase configuration.
 
 ```powershell
 Set-Location 'C:\Users\Aaryan\Documents\ChatGPT\Custodian'
@@ -95,4 +116,8 @@ Do not enable `trusted: true` in `configs/models.yaml` merely to make an alert a
 
 ## Repository hygiene
 
-Raw captures, dataset files, processed tables, model binaries, local databases, reports, caches, secrets, virtual environments, and frontend build output are ignored by default. Commit manifests and documentation, not private or generated data.
+The four final reviewed inference packages are intentionally tracked. Raw
+captures, CICIDS2017 CSVs, other research datasets, processed tables,
+experimental model binaries, local databases, reports, caches, secrets, virtual
+environments, and frontend build output are ignored by default. See
+`data/README.md` for dataset policy.
