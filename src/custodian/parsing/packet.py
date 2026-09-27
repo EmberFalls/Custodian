@@ -33,6 +33,8 @@ class PacketParser:
         timestamp: float,
         frame: bytes,
         datalink: int = dpkt.pcap.DLT_EN10MB,
+        *,
+        wire_length: int | None = None,
     ) -> PacketObservation | None:
         try:
             if datalink == dpkt.pcap.DLT_EN10MB:
@@ -87,7 +89,7 @@ class PacketParser:
                     src_port=int(transport.sport),
                     dst_port=int(transport.dport),
                     protocol=TransportProtocol.TCP,
-                    packet_length=len(frame),
+                    packet_length=wire_length if wire_length is not None else len(frame),
                     payload_length=len(payload),
                     tcp_flags=flags,
                     dns_metadata=dns_metadata,
@@ -109,7 +111,7 @@ class PacketParser:
                     src_port=int(transport.sport),
                     dst_port=int(transport.dport),
                     protocol=TransportProtocol.UDP,
-                    packet_length=len(frame),
+                    packet_length=wire_length if wire_length is not None else len(frame),
                     payload_length=len(payload),
                     dns_metadata=dns_metadata,
                     quic_metadata=quic_metadata,
@@ -121,7 +123,7 @@ class PacketParser:
                     src_ip=src_ip,
                     dst_ip=dst_ip,
                     protocol=TransportProtocol.ICMP,
-                    packet_length=len(frame),
+                    packet_length=wire_length if wire_length is not None else len(frame),
                 )
         except (dpkt.dpkt.NeedData, dpkt.dpkt.UnpackError, ValueError):
             return None

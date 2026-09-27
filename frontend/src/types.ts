@@ -128,6 +128,8 @@ export interface RuntimeStatus {
   capture: string | null;
   active_flows: number;
   source_type: string;
+  selected_interface?: string | null;
+  capture_filter?: string | null;
   mode: string;
   speed_multiplier: number;
   replay_state: string;

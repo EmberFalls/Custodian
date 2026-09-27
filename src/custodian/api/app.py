@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 from hashlib import sha256
 from ipaddress import ip_address
 from pathlib import Path
-from threading import RLock, Thread
+from threading import Event, RLock, Thread
+from time import monotonic
 from typing import Literal
 from uuid import uuid4
 
@@ -32,6 +33,17 @@ from custodian.exports import ExportService
 from custodian.ingest.pcap import SUPPORTED_DATALINKS, CaptureReader
 from custodian.ingest.replay import ReplayController
 from custodian.ingestion import adapter_statuses
+from custodian.ingestion.live_capture import (
+    CaptureBackend,
+    CaptureBackendError,
+    CaptureBackendUnavailable,
+    CapturePermissionError,
+    InterfaceUnavailable,
+    LiveCaptureSource,
+    PcapyBackend,
+    UnsupportedLinkType,
+    capture_backend_status,
+)
 from custodian.ingestion.validation import CaptureValidator
 from custodian.runtime.engine import CustodianEngine
 from custodian.runtime.event_bus import (
@@ -58,6 +70,7 @@ OPENAPI_TAGS = [
     {"name": "system", "description": "Health, readiness, and diagnostics."},
     {"name": "captures", "description": "Discover and validate confined capture files."},
     {"name": "replay", "description": "Control passive local capture-file processing."},
+    {"name": "live_capture", "description": "Explicitly control passive capture on one selected interface."},
     {"name": "telemetry", "description": "Runtime counters, rates, resources, and status."},
     {"name": "alerts", "description": "Evidence-aware alerts and analyst lifecycle."},
     {"name": "detectors", "description": "Detector/model availability and trust state."},
@@ -71,6 +84,11 @@ class ReplayStartRequest(BaseModel):
     capture: str = Field(min_length=1)
     mode: ReplayMode | None = None
     speed_multiplier: Literal[1, 2, 5, 10] | None = None
+
+
+class LiveCaptureStartRequest(BaseModel):
+    interface_id: str = Field(min_length=1, max_length=512)
+    capture_filter: str | None = Field(default=None, max_length=512)
 
 
 class CaptureValidateRequest(BaseModel):
@@ -95,12 +113,19 @@ class ReplaySession:
         event_hub: EventHub | None = None,
         live_state: RedisLiveStateCache | None = None,
         event_bus: KafkaEventBus | InProcessEventBus | None = None,
+        capture_backend: CaptureBackend | None = None,
     ) -> None:
         self.engine, self.config = engine, config
         self.repository = repository
         self.event_hub = event_hub or EventHub()
         self.live_state = live_state or RedisLiveStateCache(config.redis)
         self.event_bus = event_bus or KafkaEventBus(config.kafka)
+        self.capture_backend = capture_backend or PcapyBackend()
+        self.live_source: LiveCaptureSource | None = None
+        self.live_stop = Event()
+        self.active_source_type = "PCAP_REPLAY"
+        self.active_capture_filter: str | None = None
+        self.active_interface: str | None = None
         self.capture_root = config.replay.capture_root.resolve()
         self.validator = CaptureValidator(
             self.capture_root, max_size_bytes=config.replay.max_capture_size_bytes
@@ -323,6 +348,9 @@ class ReplaySession:
             self.engine.reset()
             self.engine.capture_id = record.capture_id
             self.capture, self.error = capture, None
+            self.active_source_type = "PCAP_REPLAY"
+            self.active_capture_filter = None
+            self.active_interface = None
             self.capture_size_bytes = reader.size_bytes
             self.state, self.running = "RUNNING", True
             self.run_id += 1
@@ -331,6 +359,146 @@ class ReplaySession:
             self._publish("replay.started", {"capture": capture, "mode": controller.mode.value})
             self.sync_live_state()
             self._launch(controller)
+
+    def live_interfaces(self) -> dict[str, object]:
+        return capture_backend_status(self.capture_backend)
+
+    def input_statuses(self) -> list[dict[str, object]]:
+        statuses = adapter_statuses()
+        live = self.live_interfaces()
+        for item in statuses:
+            if item["source_type"] == "live_passive":
+                item["status"] = live["status"]
+                item["opens_network_interface"] = False
+                item["reason"] = live["reason"]
+        return statuses
+
+    def live_capture_diagnostics(self) -> dict[str, object]:
+        backend = self.live_interfaces()
+        status = self.status()
+        active = status["source_type"] == "LIVE_PASSIVE" and status["replay_running"]
+        state = status["replay_state"]
+        error = status["error"]
+        if error:
+            capture_status = "degraded"
+            reason = error
+        elif active:
+            capture_status = "capturing"
+            reason = None
+        else:
+            capture_status = backend["status"]
+            reason = backend["reason"]
+        return {
+            "status": capture_status,
+            "backend": backend["backend"],
+            "platform": backend["platform"],
+            "reason": reason,
+            "state": state if status["source_type"] == "LIVE_PASSIVE" else "IDLE",
+            "running": active,
+            "selected_interface": status["selected_interface"],
+            "capture_filter": status["capture_filter"],
+        }
+
+    def start_live(self, interface_id: str, capture_filter: str | None = None) -> None:
+        with self._lock:
+            if self.running:
+                raise RuntimeError("another ingestion session is already running")
+            if self.config.kafka.enabled and self.repository is None:
+                raise RuntimeError("Kafka mode requires PostgreSQL durable event processing")
+            source = LiveCaptureSource.open(self.capture_backend, interface_id, capture_filter)
+            self.engine.reset()
+            self.engine.mode = ReplayMode.FAST
+            self.engine.capture_id = f"live-{uuid4().hex}"
+            self.live_source = source
+            self.live_stop.clear()
+            self.capture = source.interface.name
+            self.active_interface = source.interface.name
+            self.active_capture_filter = source.capture_filter
+            self.active_source_type = "LIVE_PASSIVE"
+            self.capture_size_bytes = 0
+            self.error = None
+            self.state, self.running = "CAPTURING", True
+            self.run_id += 1
+            self._publish(
+                "live_capture.started",
+                {
+                    "interface": source.interface.name,
+                    "capture_filter": source.capture_filter,
+                },
+            )
+            self.sync_live_state()
+            self.thread = Thread(
+                target=self._run_live,
+                args=(source,),
+                name="custodian-live-passive-capture",
+                daemon=True,
+            )
+            self.thread.start()
+
+    def _run_live(self, source: LiveCaptureSource) -> None:
+        self.engine.metrics.begin()
+        last_sync = monotonic()
+        try:
+            while not self.live_stop.is_set():
+                packet = source.next_observation()
+                if packet is not None:
+                    for alert in self.engine.process_observation(packet, packet.packet_length):
+                        if self.repository:
+                            self.repository.upsert_alert(alert, capture_id=self.engine.capture_id)
+                        self.live_state.append_recent_alert(self._alert_summary(alert))
+                        self._publish(
+                            "alert.upserted",
+                            {"alert_id": alert.alert_id, "decision": alert.decision.value},
+                        )
+                    if self.config.kafka.enabled:
+                        self.publish_pipeline_events()
+                if monotonic() - last_sync >= 0.5:
+                    self.sync_live_state()
+                    last_sync = monotonic()
+            for alert in self.engine.finish():
+                if self.repository:
+                    self.repository.upsert_alert(alert, capture_id=self.engine.capture_id)
+                self.live_state.append_recent_alert(self._alert_summary(alert))
+                self._publish(
+                    "alert.upserted",
+                    {"alert_id": alert.alert_id, "decision": alert.decision.value},
+                )
+            self.publish_pipeline_events()
+            if self.repository:
+                for flow in self.engine.recent_flows:
+                    self.repository.upsert_flow(flow, capture_id=self.engine.capture_id)
+            with self._lock:
+                self.state = "STOPPED" if self.live_stop.is_set() else "CAPTURING"
+                if self.live_stop.is_set():
+                    self._publish("live_capture.stopped", {"interface": self.active_interface})
+        except Exception as exc:
+            with self._lock:
+                self.error = str(exc)
+                self.state = "ERROR"
+                self._publish(
+                    "live_capture.failed",
+                    {"interface": self.active_interface, "reason": str(exc)},
+                )
+        finally:
+            try:
+                source.close()
+            except Exception as exc:
+                with self._lock:
+                    self.error = self.error or f"capture resource cleanup failed: {exc}"
+                    self.state = "ERROR"
+            with self._lock:
+                self.live_source = None
+                self.running = False
+                self.sync_live_state()
+
+    def stop_live(self) -> None:
+        with self._lock:
+            if not self.running or self.active_source_type != "LIVE_PASSIVE":
+                raise RuntimeError("no live capture is running")
+            self.state = "STOPPING"
+            self.live_stop.set()
+            self._publish("live_capture.stop_requested", {"interface": self.active_interface})
+            self.sync_live_state()
 
     def _launch(self, controller: ReplayController) -> None:
         def run():
@@ -460,6 +628,8 @@ class ReplaySession:
             self.sync_live_state()
 
     def stop(self):
+        if self.active_source_type == "LIVE_PASSIVE":
+            return self.stop_live()
         with self._lock:
             if not self.running or self.controller is None:
                 raise RuntimeError("no replay is running")
@@ -489,19 +659,29 @@ class ReplaySession:
             "replay_state": self.state,
             "capture": self.capture,
             "active_flows": self.engine.flows.active_flow_count,
-            "source_type": "PCAP_REPLAY",
+            "source_type": self.active_source_type,
             "source_name": self.capture,
-            "mode": (controller.mode if controller else self.config.replay.mode).value,
+            "mode": (
+                "live"
+                if self.active_source_type == "LIVE_PASSIVE"
+                else (controller.mode if controller else self.config.replay.mode).value
+            ),
             "speed_multiplier": controller.speed_multiplier
             if controller
             else self.config.replay.speed_multiplier,
             "progress": controller.progress if controller else None,
             "rebuilding": bool(controller and controller.rebuilding),
             "rebuild_progress": controller.rebuild_progress if controller else None,
-            "progress_basis": "capture_file_bytes",
+            "progress_basis": (
+                "observed_packets"
+                if self.active_source_type == "LIVE_PASSIVE"
+                else "capture_file_bytes"
+            ),
             "capture_size_bytes": self.capture_size_bytes,
             "processed_capture_bytes": controller.processed_bytes if controller else 0,
             "checkpoint_origin_progress": 0.0 if controller else None,
+            "selected_interface": self.active_interface,
+            "capture_filter": self.active_capture_filter,
             "error": self.error,
             "run_id": self.run_id,
             "telemetry_interval_ms": round(self.telemetry_interval * 1000),
@@ -513,6 +693,7 @@ def create_app(
     *,
     live_state: RedisLiveStateCache | None = None,
     repository_override: PostgresRepository | None = None,
+    capture_backend: CaptureBackend | None = None,
 ) -> FastAPI:
     engine = CustodianEngine(config)
     repository = repository_override
@@ -536,7 +717,9 @@ def create_app(
         if config.kafka.enabled
         else InProcessEventBus(max_events=min(config.defaults.max_temporal_events, 5000))
     )
-    session = ReplaySession(engine, config, repository, event_hub, live_state, event_bus)
+    session = ReplaySession(
+        engine, config, repository, event_hub, live_state, event_bus, capture_backend
+    )
     consumer_stop = asyncio.Event()
     consumer_thread: Thread | None = None
     if repository:
@@ -575,6 +758,8 @@ def create_app(
             await asyncio.to_thread(consumer_thread.join, 2)
         if session.running and session.controller:
             session.controller.stop()
+        if session.running and session.active_source_type == "LIVE_PASSIVE":
+            session.live_stop.set()
         if session.thread:
             await asyncio.to_thread(session.thread.join, 2)
         live_state.close()
@@ -773,12 +958,13 @@ def create_app(
                 "models": model_components,
                 "redis": live_state.readiness(),
                 "kafka": event_bus.readiness(),
+                "live_capture": session.live_capture_diagnostics(),
                 "inputs": {
                     item["source_type"]: {
                         "status": item["status"],
                         "reason": item["reason"],
                     }
-                    for item in adapter_statuses()
+                    for item in session.input_statuses()
                 },
             },
         }
@@ -794,6 +980,26 @@ def create_app(
     )
     def replay_status():
         return status()
+
+    @app.get("/api/v1/live/interfaces", tags=["live_capture"])
+    def live_interfaces():
+        return session.live_interfaces()
+
+    @app.get("/api/v1/live/status", tags=["live_capture"])
+    def live_capture_status():
+        return {
+            "status": session.state
+            if session.active_source_type == "LIVE_PASSIVE"
+            else "IDLE",
+            "source_type": session.active_source_type,
+            "interface": session.active_interface,
+            "capture_filter": session.active_capture_filter,
+            "running": session.running
+            and session.active_source_type == "LIVE_PASSIVE",
+            "error": session.error
+            if session.active_source_type == "LIVE_PASSIVE"
+            else session.live_interfaces()["reason"],
+        }
 
     @app.get("/api/v1/captures", tags=["captures"], summary="List confined capture candidates")
     def captures():
@@ -955,7 +1161,8 @@ def create_app(
         return {
             "routing": list(engine.routing_diagnostics),
             "model_load_errors": dict(engine._load_errors),
-            "inputs": adapter_statuses(),
+            "inputs": session.input_statuses(),
+            "live_capture": session.live_capture_diagnostics(),
             "kafka": event_bus.readiness(),
         }
 
@@ -1041,6 +1248,26 @@ def create_app(
         except RuntimeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"status": result}
+
+    @app.post("/api/v1/live/start", tags=["live_capture"])
+    def start_live_capture(request: LiveCaptureStartRequest):
+        try:
+            session.start_live(request.interface_id, request.capture_filter)
+        except CaptureBackendUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except CapturePermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except InterfaceUnavailable as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except UnsupportedLinkType as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except (ValueError, CaptureBackendError, RuntimeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return session.status()
+
+    @app.post("/api/v1/live/stop", tags=["live_capture"])
+    def stop_live_capture():
+        return control(session.stop_live, "stopping")
 
     @app.post("/api/v1/replay/pause", tags=["replay"], summary="Pause active file replay")
     def pause_replay():

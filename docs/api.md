@@ -126,7 +126,7 @@ curl.exe http://127.0.0.1:8000/api/v1/health
 
 ### `GET /api/v1/readiness`
 
-Reports operational components and safety properties.
+Reports operational components and safety properties. Live backend status describes availability without opening an interface. Actual permission and link-type validation happens only after an explicit start request.
 
 ```powershell
 curl.exe http://127.0.0.1:8000/api/v1/readiness
@@ -148,6 +148,8 @@ Representative degraded response:
       "status": "disabled",
       "reason": "Redis live-state cache is disabled by configuration"
     },
+    "live_capture": {"status": "unavailable", "reason": "live capture backend is missing"},
+    "kafka": {"status": "disabled"},
     "inputs": {}
   }
 }
@@ -156,6 +158,36 @@ Representative degraded response:
 `degraded` does not necessarily mean replay is broken. It commonly means parsing remains ready while one or more model artifacts are unavailable, untrusted, incomplete, or incompatible.
 
 The `redis` component reports the optional short-lived live-state cache: `ready`, `degraded`, `unavailable`, or `disabled`. Redis status never changes the overall readiness decision or stops replay. See [Controlled pilot data layer](CONTROLLED_PILOT_DATA_LAYER.md).
+
+The `live_capture` component reports whether the optional Npcap/libpcap backend can enumerate interfaces, or whether an active capture is running or degraded. It never starts capture. Diagnostics additionally show the selected interface, filter, runtime state, and last capture error. See [Real-time passive packet capture](REALTIME_PACKET_CAPTURE.md).
+
+## Live passive capture
+
+Live capture is optional. It requires the separately installed capture extra and platform backend. The endpoint only lists interfaces; it does not open them:
+
+### `GET /api/v1/live/interfaces`
+
+Returns `status`, `platform`, `backend`, `reason`, and an `interfaces` array containing interface IDs, display names, availability, and link type where known.
+
+### `GET /api/v1/live/status`
+
+Returns the normal runtime status, including live source type, selected interface, capture filter, run ID, progress basis, and error.
+
+### `POST /api/v1/live/start`
+
+Requires explicit interface selection. Optional BPF capture filters are applied by the capture backend. Empty filter means unfiltered capture on that one interface.
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/api/v1/live/start `
+  -H "Content-Type: application/json" `
+  -d '{"interface_id":"<interface-id>","capture_filter":"tcp"}'
+```
+
+Missing backend returns 503, permission failure 403, unavailable interface 404, unsupported link type 422, and invalid runtime/filter requests 400. See the live capture guide for platform setup, safety, metadata and payload boundaries, and limitations.
+
+### `POST /api/v1/live/stop`
+
+Requests a clean stop and final flow flush. Live backend failures are shown in `/api/v1/status`, `/api/v1/readiness`, and `/api/v1/diagnostics`.
 
 ## Runtime and replay status
 
@@ -646,7 +678,7 @@ Implemented now:
 
 - localhost health/readiness;
 - capture discovery and validation;
-- passive PCAP/CAP/PCAPNG file processing;
+- passive PCAP/CAP/PCAPNG file processing and explicitly started single-interface live capture;
 - replay start, pause, resume, stop, deterministic seek, and reset;
 - telemetry, metrics, flows, host timeline, detector state, alerts, events, exports, and WebSockets;
 - evidence-aware alert records; and
@@ -656,7 +688,6 @@ Planned or separately scoped:
 
 - user authentication and authorization;
 - production TLS/public deployment;
-- live passive network-interface capture;
 - remote sensors;
 - DNS and TLS/QUIC detection until approved artifacts exist; and
 - any additional model-management administration.

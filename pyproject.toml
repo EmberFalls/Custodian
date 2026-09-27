@@ -42,6 +42,9 @@ pilot = [
     "redis>=5,<7",
     "confluent-kafka>=2.6,<3",
 ]
+capture = [
+    "pcapy-ng>=2.1,<3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src", "."]

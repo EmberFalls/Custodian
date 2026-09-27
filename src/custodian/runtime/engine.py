@@ -19,7 +19,13 @@ from custodian.core.enums import (
     ReplayMode,
     TransportProtocol,
 )
-from custodian.core.schemas import CapabilityProfile, FeatureVector, FlowRecord, ObservationFrame
+from custodian.core.schemas import (
+    CapabilityProfile,
+    FeatureVector,
+    FlowRecord,
+    ObservationFrame,
+    PacketObservation,
+)
 from custodian.detection.behaviour import BehaviourDetector
 from custodian.detection.dns import DNSDetector
 from custodian.detection.tls_quic import TLSQUICDetector
@@ -499,6 +505,17 @@ class CustodianEngine:
             self.metrics.skipped_frames += 1
             self.metrics.record_parse_failure(parse_status)
             return self.flush_due()
+        return self._process_observation(packet, sampled=sampled)
+
+    def process_observation(self, packet: PacketObservation, wire_length: int) -> list:
+        """Process an already validated metadata-only observation through shared stages."""
+        if self.metrics._started is None:
+            self.metrics.begin()
+        sampled = self.mode is not ReplayMode.BENCHMARK or self.metrics.packet_count % 32 == 0
+        self.metrics.record_packet(wire_length, packet.timestamp.timestamp())
+        return self._process_observation(packet, sampled=sampled)
+
+    def _process_observation(self, packet: PacketObservation, *, sampled: bool) -> list:
         if self._watermark is not None and packet.timestamp < self._watermark:
             self.metrics.out_of_order_packets += 1
             return self.flush_due()

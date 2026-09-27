@@ -49,6 +49,10 @@ def test_openapi_inventory_has_human_readable_metadata(tmp_path: Path) -> None:
         ("/health", "get"),
         ("/api/v1/health", "get"),
         ("/api/v1/readiness", "get"),
+        ("/api/v1/live/interfaces", "get"),
+        ("/api/v1/live/status", "get"),
+        ("/api/v1/live/start", "post"),
+        ("/api/v1/live/stop", "post"),
         ("/api/v1/status", "get"),
         ("/api/v1/replay/status", "get"),
         ("/api/v1/captures", "get"),
@@ -137,6 +141,7 @@ def test_documented_http_examples_work_locally(tmp_path: Path) -> None:
             "models",
             "redis",
             "kafka",
+            "live_capture",
             "inputs",
         }
         assert readiness["components"]["redis"]["status"] == "disabled"
@@ -181,6 +186,7 @@ def test_documented_http_examples_work_locally(tmp_path: Path) -> None:
             "routing",
             "model_load_errors",
             "inputs",
+            "live_capture",
             "kafka",
         }
 
