@@ -100,7 +100,7 @@ export function IncidentsTable() {
   };
 
   return (
-    <div className="shad-table-container">
+    <div className="shad-table-container anim-fade-up anim-delay-3">
       {/* Table Toolbar */}
       <div className="shad-table-toolbar">
         {/* Filter Tabs */}

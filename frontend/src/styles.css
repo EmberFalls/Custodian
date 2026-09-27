@@ -1090,8 +1090,9 @@ tbody tr:focus-visible { outline: 2px solid var(--accent-purple); }
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden;
 }
 .bento-card:hover {
+  transform: translateY(-3px);
   border-color: var(--landing-card-border-hover);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 20px var(--landing-brand-glow);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 16px rgba(139, 92, 246, 0.12);
 }
 
 /* Infinite Marquee Strip */

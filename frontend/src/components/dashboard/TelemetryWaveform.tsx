@@ -52,7 +52,7 @@ export function TelemetryWaveform() {
   };
 
   return (
-    <section className="shad-chart-card" aria-label="Telemetry Ingestion Waveform">
+    <section className="shad-chart-card anim-fade-up anim-delay-2" aria-label="Telemetry Ingestion Waveform">
       <div className="shad-chart-header">
         <div>
           <h2 className="shad-chart-title">Real-time Telemetry Ingestion</h2>

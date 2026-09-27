@@ -23,7 +23,7 @@ export function KPIGrid() {
   return (
     <section className="shad-kpi-grid" aria-label="Key Performance Indicators">
       {/* 1. Threat Severity */}
-      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "0ms" }}>
+      <article className="shad-card anim-fade-up anim-delay-0">
         <div className="shad-card__header">
           <span className="shad-card__title">THREAT SEVERITY</span>
           {kpis.criticalAlertsCount > 0 ? (
@@ -54,7 +54,7 @@ export function KPIGrid() {
       </article>
 
       {/* 2. Active Flows */}
-      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "60ms" }}>
+      <article className="shad-card anim-fade-up anim-delay-1">
         <div className="shad-card__header">
           <span className="shad-card__title">ACTIVE FLOWS</span>
           <span className="shad-trend shad-trend--neutral">Live Sessions</span>
@@ -67,7 +67,7 @@ export function KPIGrid() {
       </article>
 
       {/* 3. Ingest Throughput */}
-      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "120ms" }}>
+      <article className="shad-card anim-fade-up anim-delay-2">
         <div className="shad-card__header">
           <span className="shad-card__title">INGEST THROUGHPUT</span>
           <span className="shad-trend shad-trend--neutral">
@@ -85,7 +85,7 @@ export function KPIGrid() {
       </article>
 
       {/* 4. Total Packets & Bytes */}
-      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "180ms" }}>
+      <article className="shad-card anim-fade-up anim-delay-3">
         <div className="shad-card__header">
           <span className="shad-card__title">TOTAL DATA INSPECTED</span>
           <span className="shad-trend shad-trend--neutral">PCAP Frame</span>

@@ -871,100 +871,135 @@
 
 /* Keyframes ---------------------------------------------------------------- */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fade-in-anim {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.97) translateY(8px); }
-  to   { opacity: 1; transform: scale(1)    translateY(0); }
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 /* New row slides down into place */
 @keyframes row-enter {
-  from { opacity: 0; transform: translateY(-10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+    background-color: rgba(139, 92, 246, 0.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    background-color: transparent;
+  }
 }
 
 /* Subtle breath for "REPLAYING" indicator */
 @keyframes replay-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.96);
+  }
 }
 
 /* Page transitions */
 @keyframes page-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Utility classes ---------------------------------------------------------- */
 
-/* Add is-visible to trigger transition */
+/* Immediate mount animations */
 .anim-fade-up {
-  opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 0.42s ease, transform 0.42s ease;
-}
-.anim-fade-up.is-visible {
-  opacity: 1;
-  transform: translateY(0);
+  animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .anim-fade-in {
-  opacity: 0;
-  transition: opacity 0.38s ease;
-}
-.anim-fade-in.is-visible {
-  opacity: 1;
+  animation: fade-in-anim 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .anim-scale-in {
-  opacity: 0;
-  transform: scale(0.97) translateY(8px);
-  transition: opacity 0.4s ease, transform 0.4s ease;
+  animation: scale-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.anim-scale-in.is-visible {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
+
+/* Stagger delay classes */
+.anim-delay-0 { animation-delay: 0ms; }
+.anim-delay-1 { animation-delay: 80ms; }
+.anim-delay-2 { animation-delay: 160ms; }
+.anim-delay-3 { animation-delay: 240ms; }
+.anim-delay-4 { animation-delay: 320ms; }
 
 /* Page content area transition */
 .shad-page-content {
-  animation: page-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* New incidents table row */
 .shad-table-row--new {
-  animation: row-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: row-enter 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Replay badge subtle breath */
 .shad-replay-badge--live {
-  animation: replay-pulse 2s ease-in-out infinite;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: replay-pulse 1.8s ease-in-out infinite;
 }
 
-/* Sidebar active indicator — thin vertical bar that grows in */
+/* Sidebar active indicator — smooth vertical indicator */
 .shad-sidebar__nav-item {
   position: relative;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.shad-sidebar__nav-item:hover {
+  transform: translateX(2px);
 }
 .shad-sidebar__nav-item::before {
   content: '';
   position: absolute;
   left: 0;
   top: 50%;
-  width: 2px;
+  width: 3px;
   height: 0;
   background: #8b5cf6;
-  border-radius: 0 2px 2px 0;
+  border-radius: 0 3px 3px 0;
   transform: translateY(-50%);
-  transition: height 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .shad-sidebar__nav-item.is-active::before {
-  height: 55%;
+  height: 65%;
 }
+
