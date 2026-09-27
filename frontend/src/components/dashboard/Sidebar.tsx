@@ -8,7 +8,6 @@ import {
   Home,
   Monitor,
   LogOut,
-  ShieldCheck,
 } from "lucide-react";
 import { useDashboard } from "../../context/DashboardTelemetryContext";
 import { useAuth } from "../../context/AuthContext";
@@ -35,7 +34,6 @@ export function Sidebar({ onNavigateHome, onSignOut }: { onNavigateHome: () => v
       <div className="shad-sidebar__top">
         {/* Brand */}
         <div className="shad-sidebar__brand">
-          <ShieldCheck size={20} className="text-zinc-100" />
           <div className="shad-sidebar__brand-text">
             <span className="shad-sidebar__brand-name">CUSTODIAN</span>
             <span className="shad-sidebar__brand-sub">

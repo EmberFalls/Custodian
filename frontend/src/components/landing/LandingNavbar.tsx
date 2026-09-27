@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { CustodianShieldIcon } from "./icons/CustodianShieldIcon";
 import { useAuth } from "../../context/AuthContext";
 
 interface LandingNavbarProps {
@@ -40,7 +39,6 @@ export function LandingNavbar({ onLaunchDashboard }: LandingNavbarProps) {
         }}
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       >
-        <CustodianShieldIcon size={26} />
         <span
           style={{
             fontFamily: "'IBM Plex Sans', -apple-system, sans-serif",
