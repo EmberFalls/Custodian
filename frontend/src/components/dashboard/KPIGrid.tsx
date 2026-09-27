@@ -2,9 +2,12 @@ import React from "react";
 import { ShieldAlert, Activity, ArrowUpRight, ArrowDownRight, Layers, Zap } from "lucide-react";
 import { useDashboard } from "../../context/DashboardTelemetryContext";
 import { formatBytes, formatDecimal, formatNumber } from "../../runtime";
+import { useCountUp } from "../../hooks/useCountUp";
 
 export function KPIGrid() {
   const { kpis } = useDashboard();
+  const animatedFlows = useCountUp(kpis.activeFlows, 600, kpis.connected);
+  const animatedPackets = useCountUp(kpis.totalPackets, 700, kpis.connected);
 
   // Loading skeleton state
   if (!kpis.connected && !kpis.error) {
@@ -20,7 +23,7 @@ export function KPIGrid() {
   return (
     <section className="shad-kpi-grid" aria-label="Key Performance Indicators">
       {/* 1. Threat Severity */}
-      <article className="shad-card">
+      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "0ms" }}>
         <div className="shad-card__header">
           <span className="shad-card__title">THREAT SEVERITY</span>
           {kpis.criticalAlertsCount > 0 ? (
@@ -51,12 +54,12 @@ export function KPIGrid() {
       </article>
 
       {/* 2. Active Flows */}
-      <article className="shad-card">
+      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "60ms" }}>
         <div className="shad-card__header">
           <span className="shad-card__title">ACTIVE FLOWS</span>
           <span className="shad-trend shad-trend--neutral">Live Sessions</span>
         </div>
-        <div className="shad-card__value">{formatNumber(kpis.activeFlows)}</div>
+        <div className="shad-card__value">{formatNumber(animatedFlows)}</div>
         <div className="shad-card__detail">
           <Layers size={13} className="text-zinc-400" />
           <span>Open bidirectional TCP/UDP sessions</span>
@@ -64,7 +67,7 @@ export function KPIGrid() {
       </article>
 
       {/* 3. Ingest Throughput */}
-      <article className="shad-card">
+      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "120ms" }}>
         <div className="shad-card__header">
           <span className="shad-card__title">INGEST THROUGHPUT</span>
           <span className="shad-trend shad-trend--neutral">
@@ -82,7 +85,7 @@ export function KPIGrid() {
       </article>
 
       {/* 4. Total Packets & Bytes */}
-      <article className="shad-card">
+      <article className="shad-card anim-fade-up is-visible" style={{ transitionDelay: "180ms" }}>
         <div className="shad-card__header">
           <span className="shad-card__title">TOTAL DATA INSPECTED</span>
           <span className="shad-trend shad-trend--neutral">PCAP Frame</span>
@@ -90,9 +93,10 @@ export function KPIGrid() {
         <div className="shad-card__value">{formatBytes(kpis.totalBytes)}</div>
         <div className="shad-card__detail">
           <Activity size={13} className="text-zinc-400" />
-          <span>{formatNumber(kpis.totalPackets)} packets analyzed</span>
+          <span>{formatNumber(animatedPackets)} packets analyzed</span>
         </div>
       </article>
     </section>
   );
 }
+

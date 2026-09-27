@@ -862,3 +862,109 @@
   border-radius: 6px;
   animation: skeleton-shimmer 1.5s infinite ease-in-out;
 }
+
+/* ==========================================================================
+   ANIMATION SYSTEM
+   All animations use transform + opacity only (GPU composited).
+   No heavy glows — shadows kept subtle, no neon effects.
+   ========================================================================== */
+
+/* Keyframes ---------------------------------------------------------------- */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-anim {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+/* New row slides down into place */
+@keyframes row-enter {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Subtle breath for "REPLAYING" indicator */
+@keyframes replay-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* Page transitions */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Utility classes ---------------------------------------------------------- */
+
+/* Add is-visible to trigger transition */
+.anim-fade-up {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.42s ease, transform 0.42s ease;
+}
+.anim-fade-up.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.anim-fade-in {
+  opacity: 0;
+  transition: opacity 0.38s ease;
+}
+.anim-fade-in.is-visible {
+  opacity: 1;
+}
+
+.anim-scale-in {
+  opacity: 0;
+  transform: scale(0.97) translateY(8px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.anim-scale-in.is-visible {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+/* Page content area transition */
+.shad-page-content {
+  animation: page-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* New incidents table row */
+.shad-table-row--new {
+  animation: row-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Replay badge subtle breath */
+.shad-replay-badge--live {
+  animation: replay-pulse 2s ease-in-out infinite;
+}
+
+/* Sidebar active indicator — thin vertical bar that grows in */
+.shad-sidebar__nav-item {
+  position: relative;
+}
+.shad-sidebar__nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 2px;
+  height: 0;
+  background: #8b5cf6;
+  border-radius: 0 2px 2px 0;
+  transform: translateY(-50%);
+  transition: height 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.shad-sidebar__nav-item.is-active::before {
+  height: 55%;
+}

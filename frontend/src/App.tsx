@@ -42,8 +42,8 @@ function DashboardInner({ onNavigateHome, onSignOut }: { onNavigateHome: () => v
         {/* Top Header */}
         <TopHeader />
 
-        {/* Page Content */}
-        <main>
+        {/* Page Content with smooth tab transition */}
+        <main key={activeTab} className="shad-page-content">
           {activeTab === "monitor" && <LiveMonitorPage />}
           {activeTab === "alerts" && <AlertsPage />}
           {activeTab === "traffic" && <TrafficPage />}

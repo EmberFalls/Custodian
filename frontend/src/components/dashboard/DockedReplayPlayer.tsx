@@ -145,7 +145,9 @@ export function DockedReplayPlayer() {
       {/* Center: Interactive Scrubber Timeline */}
       <div className="shad-player__center">
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.7rem", color: "#71717a" }}>
-          <span>{status?.replay_state || "IDLE"}</span>
+          <span className={isRunning ? "shad-replay-badge--live" : ""}>
+            {status?.replay_state || "IDLE"}
+          </span>
           <span style={{ fontFamily: "monospace", color: "#f4f4f5" }}>{progressPercent}%</span>
         </div>
         <div className="shad-scrubber" onClick={handleSeek} title="Click to scrub replay timeline">
