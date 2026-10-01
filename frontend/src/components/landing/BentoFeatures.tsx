@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useInView } from "../../hooks/useInView";
 
 /* ──────────────────────────────────────────────
    Card 1: Animated Bidirectional Flow Assembler
@@ -646,9 +647,12 @@ function SqliteForensicsCard() {
    BentoFeatures Section Assembler
    ─────────────────────────────────────────────── */
 export function BentoFeatures() {
+  const [sectionRef, isVisible] = useInView({ threshold: 0.08 });
+
   return (
     <section
       id="features"
+      ref={sectionRef as React.RefObject<HTMLDivElement>}
       style={{
         position: "relative",
         backgroundColor: "#18181b",
@@ -658,7 +662,7 @@ export function BentoFeatures() {
     >
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
         {/* Section Header */}
-        <div style={{ marginBottom: "48px" }}>
+        <div className={`reveal-on-scroll ${isVisible ? "is-revealed" : ""}`} style={{ marginBottom: "48px" }}>
           <div
             style={{
               fontFamily: "'IBM Plex Sans', sans-serif",
@@ -700,6 +704,7 @@ export function BentoFeatures() {
 
         {/* 2-column Bento Grid */}
         <div
+          className={`reveal-on-scroll reveal-stagger-1 ${isVisible ? "is-revealed" : ""}`}
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(2, 1fr)",
@@ -716,3 +721,4 @@ export function BentoFeatures() {
     </section>
   );
 }
+
