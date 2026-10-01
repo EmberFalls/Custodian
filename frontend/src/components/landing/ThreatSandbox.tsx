@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useInView } from "../../hooks/useInView";
 
 const SCENARIOS = [
   {
@@ -61,11 +62,13 @@ const SCENARIOS = [
 
 export function ThreatSandbox() {
   const [active, setActive] = useState(0);
+  const [sectionRef, isVisible] = useInView({ threshold: 0.08 });
   const scenario = SCENARIOS[active];
 
   return (
     <section
       id="detectors"
+      ref={sectionRef as React.RefObject<HTMLDivElement>}
       style={{
         backgroundColor: "#18181b",
         borderTop: "1px solid rgba(255, 255, 255, 0.08)",
@@ -74,7 +77,7 @@ export function ThreatSandbox() {
     >
       <div style={{ maxWidth: 1080, margin: "0 auto" }}>
         {/* Section Header */}
-        <div style={{ marginBottom: "40px" }}>
+        <div className={`reveal-on-scroll ${isVisible ? "is-revealed" : ""}`} style={{ marginBottom: "40px" }}>
           <div
             style={{
               fontFamily: "'IBM Plex Sans', sans-serif",
@@ -116,6 +119,7 @@ export function ThreatSandbox() {
 
         {/* Scenario Selection Tabs */}
         <div
+          className={`reveal-on-scroll reveal-stagger-1 ${isVisible ? "is-revealed" : ""}`}
           style={{
             display: "flex",
             gap: "8px",

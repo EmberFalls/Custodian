@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
+.pytest-temp-*/
 .test-tmp-*/
 .ruff_cache/
 .mypy_cache/
@@ -97,6 +98,7 @@ frontend/*.tsbuildinfo
 frontend/.vite/
 frontend/coverage/
 frontend/.eslintcache
+old_frontend/
 
 # Only the final reviewed demo packages below are distributed for fresh-clone
 # inference. Experimental artifacts remain local.

@@ -1090,8 +1090,9 @@ tbody tr:focus-visible { outline: 2px solid var(--accent-purple); }
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden;
 }
 .bento-card:hover {
+  transform: translateY(-3px);
   border-color: var(--landing-card-border-hover);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 20px var(--landing-brand-glow);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 16px rgba(139, 92, 246, 0.12);
 }
 
 /* Infinite Marquee Strip */
@@ -1118,8 +1119,54 @@ tbody tr:focus-visible { outline: 2px solid var(--accent-purple); }
   animation-play-state: paused !important;
 }
 
-/* Glow effects */
+/* Glow effects - kept minimal and soft */
 .glow-cyan {
-  box-shadow: 0 0 30px rgba(0, 240, 255, 0.18);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.12);
+}
+
+/* Scroll reveal & entrance animations */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-stagger-1 { transition-delay: 80ms; }
+.reveal-stagger-2 { transition-delay: 160ms; }
+.reveal-stagger-3 { transition-delay: 240ms; }
+.reveal-stagger-4 { transition-delay: 320ms; }
+
+/* Subtle fade in for hero elements */
+@keyframes hero-fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-animate-1 {
+  animation: hero-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.hero-animate-2 {
+  animation: hero-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards;
+  opacity: 0;
+}
+.hero-animate-3 {
+  animation: hero-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.24s forwards;
+  opacity: 0;
+}
+.hero-animate-4 {
+  animation: hero-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.36s forwards;
+  opacity: 0;
 }
 

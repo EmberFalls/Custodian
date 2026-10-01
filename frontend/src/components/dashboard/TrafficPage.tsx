@@ -1,240 +1,147 @@
-import { useEffect, useMemo, useState } from "react";
-import { formatBytes, formatDecimal, formatEndpoint, formatNumber, formatTime } from "../../runtime";
-import type { useRuntimeTelemetry } from "../../hooks/useRuntimeTelemetry";
-import type { HostTimelinePoint } from "../../types";
-import { MetricCard, Sparkline, StatusBadge, Timeline } from "../Visuals";
+import React from "react";
+import { formatBytes, formatDecimal, formatNumber, formatTime, formatEndpoint } from "../../runtime";
+import { useDashboard } from "../../context/DashboardTelemetryContext";
+import { TelemetryWaveform } from "./TelemetryWaveform";
+import { Network, Activity, Layers } from "lucide-react";
 
-type TimelineMetric = "mbps" | "packets" | "flows";
-
-interface TrafficPageProps {
-  runtime: ReturnType<typeof useRuntimeTelemetry>;
-}
-
-export function TrafficPage({ runtime }: TrafficPageProps) {
-  const [timelineMetric, setTimelineMetric] = useState<TimelineMetric>("mbps");
+export function TrafficPage() {
+  const { runtime } = useDashboard();
+  const metrics = runtime.metrics;
+  const flows = runtime.flows || [];
   const latest = runtime.history.at(-1);
 
   return (
-    <div className="dash-page">
-      {/* Traffic timeline */}
-      <Timeline
-        history={runtime.history}
-        metric={timelineMetric}
-        onMetricChange={setTimelineMetric}
-        alerts={runtime.alerts}
-      />
+    <div className="shad-content-container">
+      {/* Waveform Telemetry */}
+      <TelemetryWaveform />
 
-      {/* Rate stat cards — Fortexa multi-accent styled */}
-      <section className="dash-traffic-stats">
-        <MetricCard
-          label="TOTAL BYTES"
-          value={formatBytes(runtime.metrics?.bytes ?? 0)}
-          detail="Capture frames processed locally"
-          history={runtime.history.map((p) => p.bytes)}
-          tone="purple"
-        />
-        <MetricCard
-          label="PACKET RATE"
-          value={formatDecimal(latest?.packetsPerSecond ?? 0)}
-          unit="/ sec"
-          detail="Derived from real telemetry samples"
-          history={runtime.history.map((p) => p.packetsPerSecond)}
-          tone="teal"
-        />
-        <MetricCard
-          label="NEW FLOW RATE"
-          value={formatDecimal(latest?.flowsPerSecond ?? 0)}
-          unit="/ sec"
-          detail="Distinct sessions reconstructed per second"
-          history={runtime.history.map((p) => p.flowsPerSecond)}
-          tone="orange"
-        />
-      </section>
-
-      {/* Bounded host behaviour */}
-      <HostBehaviourTimeline points={runtime.hostTimeline} />
-
-      {/* Flow summary table */}
-      <section className="panel">
-        <div className="panel__heading">
-          <div>
-            <div className="eyebrow">READ-ONLY FLOW SUMMARIES</div>
-            <h2>Recent and active flows</h2>
+      {/* Traffic KPI Row */}
+      <div className="shad-kpi-grid">
+        <article className="shad-card">
+          <div className="shad-card__header">
+            <span className="shad-card__title">TOTAL BYTES ANALYZED</span>
+            <span className="shad-trend shad-trend--neutral">Network Volume</span>
           </div>
-          <span className="muted font-mono">{runtime.flows.length} retained</span>
-        </div>
-        {runtime.flows.length > 0 ? (
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Protocol</th>
-                  <th>IP Version</th>
-                  <th>Endpoint A</th>
-                  <th>Endpoint B</th>
-                  <th>A → B</th>
-                  <th>B → A</th>
-                  <th>Total Bytes</th>
-                  <th>Close reason</th>
-                  <th>Last seen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runtime.flows.map((flow) => {
-                  const protoClass =
-                    flow.protocol.toUpperCase() === "TCP"
-                      ? "row-icon-badge--purple"
-                      : flow.protocol.toUpperCase() === "UDP"
-                      ? "row-icon-badge--teal"
-                      : "row-icon-badge--orange";
-
-                  return (
-                    <tr key={flow.flow_id}>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span className={`row-icon-badge ${protoClass}`} style={{ width: "30px", height: "30px", fontSize: "0.72rem" }}>
-                            {flow.protocol.slice(0, 3)}
-                          </span>
-                          <span className="font-mono" style={{ fontWeight: 600, color: "var(--text-primary)" }}>{flow.protocol}</span>
-                        </div>
-                      </td>
-                      <td className="font-mono">
-                        <span className="tag-endpoint">IPv{flow.ip_version}</span>
-                      </td>
-                      <td>
-                        <span className="tag-endpoint">{formatEndpoint(flow.endpoint_a)}</span>
-                      </td>
-                      <td>
-                        <span className="tag-endpoint">{formatEndpoint(flow.endpoint_b)}</span>
-                      </td>
-                      <td className="font-mono">{formatNumber(flow.packets_a_to_b)} pkts</td>
-                      <td className="font-mono">{formatNumber(flow.packets_b_to_a)} pkts</td>
-                      <td className="font-mono">
-                        <strong style={{ color: "var(--accent-purple)" }}>
-                          {formatBytes(flow.bytes_a_to_b + flow.bytes_b_to_a)}
-                        </strong>
-                      </td>
-                      <td>
-                        <StatusBadge
-                          label={flow.close_reason ? flow.close_reason.replaceAll("_", " ") : "ACTIVE"}
-                          tone={flow.close_reason ? "neutral" : "good"}
-                        />
-                      </td>
-                      <td className="font-mono">{formatTime(flow.last_seen)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="shad-card__value">{formatBytes(metrics?.bytes ?? 0)}</div>
+          <div className="shad-card__detail">
+            <Activity size={13} className="text-zinc-400" />
+            <span>Capture-frame bytes processed locally</span>
           </div>
-        ) : (
-          <p className="panel-note">
-            No supported IP flow summaries are available for this run. Start an approved capture
-            replay to observe reconstructed bidirectional flows.
-          </p>
-        )}
-      </section>
-    </div>
-  );
-}
+        </article>
 
-/* ---------- Host Behaviour Timeline ---------- */
-function HostBehaviourTimeline({ points }: { points: HostTimelinePoint[] }) {
-  const hosts = useMemo(
-    () => [...new Set(points.flatMap((p) => (p.host ? [p.host] : [])))].sort(),
-    [points],
-  );
-  const [selectedHost, setSelectedHost] = useState("");
+        <article className="shad-card">
+          <div className="shad-card__header">
+            <span className="shad-card__title">PACKET RATE</span>
+            <span className="shad-trend shad-trend--neutral">Throughput</span>
+          </div>
+          <div className="shad-card__value">
+            {formatDecimal(latest?.packetsPerSecond ?? 0)}{" "}
+            <small style={{ fontSize: "0.85rem", color: "#a1a1aa" }}>pkt/s</small>
+          </div>
+          <div className="shad-card__detail">
+            <Network size={13} className="text-zinc-400" />
+            <span>Derived from real-time telemetry stream</span>
+          </div>
+        </article>
 
-  useEffect(() => {
-    if ((!selectedHost || !hosts.includes(selectedHost)) && hosts.length) {
-      setSelectedHost(hosts[0]);
-    }
-  }, [hosts, selectedHost]);
+        <article className="shad-card">
+          <div className="shad-card__header">
+            <span className="shad-card__title">FLOW CREATION RATE</span>
+            <span className="shad-trend shad-trend--neutral">Reconstruction</span>
+          </div>
+          <div className="shad-card__value">
+            {formatDecimal(latest?.flowsPerSecond ?? 0)}{" "}
+            <small style={{ fontSize: "0.85rem", color: "#a1a1aa" }}>flows/s</small>
+          </div>
+          <div className="shad-card__detail">
+            <Layers size={13} className="text-zinc-400" />
+            <span>New sessions tracked per wall-clock second</span>
+          </div>
+        </article>
 
-  const selected = points.filter((p) => p.host === selectedHost);
-  const measurements = selected.filter((p) => p.packet_count != null);
-  const alerts = selected.filter((p) => p.alert_id != null);
-
-  return (
-    <section className="panel dash-host-timeline">
-      <div className="panel__heading">
-        <div>
-          <div className="eyebrow">BOUNDED HOST BEHAVIOUR</div>
-          <h2>Evidence accumulation timeline</h2>
-        </div>
-        <label className="dash-host-selector">
-          <span className="font-mono">HOST</span>
-          <select
-            value={selectedHost}
-            onChange={(e) => setSelectedHost(e.target.value)}
-            className="dash-filter-select font-mono"
-          >
-            <option value="">No observed host</option>
-            {hosts.map((host) => (
-              <option key={host} value={host}>
-                {host}
-              </option>
-            ))}
-          </select>
-        </label>
+        <article className="shad-card">
+          <div className="shad-card__header">
+            <span className="shad-card__title">ACTIVE SESSIONS</span>
+            <span className="shad-trend shad-trend--neutral">Concurrent</span>
+          </div>
+          <div className="shad-card__value">{formatNumber(runtime.status?.active_flows ?? 0)}</div>
+          <div className="shad-card__detail">
+            <Layers size={13} className="text-zinc-400" />
+            <span>Open bidirectional TCP/UDP sockets</span>
+          </div>
+        </article>
       </div>
 
-      {measurements.length > 0 ? (
-        <>
-          <div className="host-chart-grid">
-            <div>
-              <span className="font-mono">Packets in window</span>
-              <Sparkline
-                values={measurements.map((p) => p.packet_count ?? 0)}
-                label={`Packet observations for ${selectedHost}`}
-              />
-            </div>
-            <div>
-              <span className="font-mono">Destination-port fan-out</span>
-              <Sparkline
-                values={measurements.map((p) => p.unique_destination_ports ?? 0)}
-                label={`Destination port diversity for ${selectedHost}`}
-                tone="amber"
-              />
-            </div>
-            <div>
-              <span className="font-mono">Outbound bytes</span>
-              <Sparkline
-                values={measurements.map((p) => p.outbound_bytes ?? 0)}
-                label={`Outbound bytes for ${selectedHost}`}
-                tone="violet"
-              />
-            </div>
+      {/* Reconstructed Flows Table */}
+      <div className="shad-table-container">
+        <div className="shad-table-toolbar">
+          <div>
+            <h3 style={{ fontSize: "0.9rem", fontWeight: 700, color: "#f4f4f5" }}>
+              Active Flow Table (Recent 100 Sessions)
+            </h3>
+            <span style={{ fontSize: "0.75rem", color: "#71717a" }}>
+              Session state tracking, packet counters, and protocol identifiers.
+            </span>
           </div>
-          <div className="timeline-meta font-mono">
-            <span>{measurements.length} bounded evidence snapshots</span>
-            <span>{alerts.length} alert-fire markers</span>
-            <span>Latest window {measurements.at(-1)?.window_seconds ?? "—"} seconds</span>
-          </div>
-          {alerts.length > 0 ? (
-            <ul className="host-alert-markers">
-              {alerts.map((p) => (
-                <li key={`${p.alert_id}-${p.observed_at}`}>
-                  <StatusBadge label="ALERT FIRED" tone="warning" />
-                  <span className="font-mono">{formatTime(p.observed_at)}</span>
-                  <strong>{p.threat_class}</strong>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="panel-note">
-              No evidence-backed alert has fired for this host. The charts show the measured
-              behaviour that was available to the pipeline.
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="panel-note">
-          No host-window snapshots are available. Snapshots appear after a valid replay produces
-          eligible flow observations.
-        </p>
-      )}
-    </section>
+        </div>
+
+        <div className="shad-table-wrapper">
+          <table className="shad-table">
+            <thead>
+              <tr>
+                <th>FLOW ID / PROTOCOL</th>
+                <th>SOURCE ➔ DESTINATION</th>
+                <th>PACKETS (A ➔ B / B ➔ A)</th>
+                <th>BYTES (A ➔ B / B ➔ A)</th>
+                <th>LAST SEEN</th>
+                <th>DIRECTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "#71717a" }}>
+                    No active flow sessions observed in current replay window.
+                  </td>
+                </tr>
+              ) : (
+                flows.slice(0, 15).map((flow) => (
+                  <tr key={flow.flow_id}>
+                    <td>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        <span style={{ fontWeight: 600, color: "#f4f4f5" }}>
+                          {flow.protocol ? flow.protocol.toUpperCase() : "TCP"}
+                        </span>
+                        <span style={{ fontSize: "0.7rem", color: "#71717a", fontFamily: "monospace" }}>
+                          {flow.flow_id.slice(0, 14)}...
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#a1a1aa" }}>
+                      {formatEndpoint(flow.endpoint_a)} ➔ {formatEndpoint(flow.endpoint_b)}
+                    </td>
+                    <td>
+                      {formatNumber(flow.packets_a_to_b)} / {formatNumber(flow.packets_b_to_a)}
+                    </td>
+                    <td>
+                      {formatBytes(flow.bytes_a_to_b)} / {formatBytes(flow.bytes_b_to_a)}
+                    </td>
+                    <td style={{ color: "#71717a", fontSize: "0.75rem" }}>
+                      {formatTime(flow.last_seen)}
+                    </td>
+                    <td>
+                      <span className="shad-badge shad-badge--clean">
+                        <span className="shad-badge__dot" />
+                        {flow.initiator_direction ? flow.initiator_direction.toUpperCase() : "BIDIRECTIONAL"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }

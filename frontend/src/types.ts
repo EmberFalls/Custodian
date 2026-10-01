@@ -79,13 +79,42 @@ export interface Readiness {
   status: "ready" | "degraded" | "unavailable";
   passive_only: boolean;
   outbound_traffic_path: boolean;
-  components: Record<string, unknown>;
+  components: Record<string, unknown> & {
+    redis?: ServiceHealth;
+    kafka?: KafkaHealth;
+    live_capture?: LiveCaptureHealth;
+  };
+}
+
+export interface ServiceHealth {
+  status: string;
+  reason?: string | null;
+}
+
+export interface KafkaHealth extends ServiceHealth {
+  enabled?: boolean;
+  producer?: string;
+  consumer?: string;
+  queue_backlog?: number;
+  dead_letter_count?: number;
+  error?: string | null;
+}
+
+export interface LiveCaptureHealth extends ServiceHealth {
+  backend?: string;
+  platform?: string;
+  state?: string;
+  running?: boolean;
+  selected_interface?: string | null;
+  capture_filter?: string | null;
 }
 
 export interface Diagnostics {
   routing: Array<{ family: string; decision: string; reason: string; missing_evidence: string[] }>;
   model_load_errors: Record<string, string>;
   inputs: Array<{ source_type: string; status: string; passive: boolean; opens_network_interface: boolean; reason: string | null }>;
+  kafka?: KafkaHealth;
+  live_capture?: LiveCaptureHealth;
 }
 
 export interface DetectorStatus {
@@ -233,4 +262,3 @@ export interface DemoCredential {
   role: Role;
   password: string;
 }
-

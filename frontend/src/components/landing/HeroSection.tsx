@@ -113,6 +113,7 @@ export function HeroSection({ onLaunchDashboard }: HeroSectionProps) {
         {/* News Announcement Pill */}
         <a
           href="#architecture"
+          className="hero-animate-1"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -177,6 +178,7 @@ export function HeroSection({ onLaunchDashboard }: HeroSectionProps) {
 
         {/* ── Primary Headline (Zeabur IBM Plex Sans Typography) ── */}
         <h1
+          className="hero-animate-2"
           style={{
             fontFamily: "'IBM Plex Sans', 'Geist', -apple-system, sans-serif",
             fontSize: "clamp(2.5rem, 5.8vw, 4.4rem)",
@@ -191,6 +193,7 @@ export function HeroSection({ onLaunchDashboard }: HeroSectionProps) {
         </h1>
 
         <div
+          className="hero-animate-2"
           style={{
             fontFamily: "'IBM Plex Sans', 'Geist', -apple-system, sans-serif",
             fontSize: "clamp(2.5rem, 5.8vw, 4.4rem)",
@@ -216,6 +219,7 @@ export function HeroSection({ onLaunchDashboard }: HeroSectionProps) {
         {/* ── Sleek Zeabur Agent Input Bar ── */}
         <form
           onSubmit={handleInspect}
+          className="hero-animate-3"
           style={{
             marginTop: "42px",
             display: "flex",
@@ -226,7 +230,7 @@ export function HeroSection({ onLaunchDashboard }: HeroSectionProps) {
             borderRadius: "8px",
             padding: "8px 10px 8px 16px",
             maxWidth: "520px",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.45), 0 0 16px rgba(139, 92, 246, 0.12)",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.45), 0 0 12px rgba(139, 92, 246, 0.08)",
             backdropFilter: "blur(16px)",
           }}
         >

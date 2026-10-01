@@ -1,7 +1,7 @@
 # Optional short-lived live-state cache for the controlled pilot.
 # Redis is disabled by default; PostgreSQL remains the durable store.
 # Values are bounded JSON metadata with a TTL; Redis is never the source of truth.
-enabled: false
+enabled: true
 url: redis://127.0.0.1:6379/0
 namespace: custodian:pilot
 ttl_seconds: 900

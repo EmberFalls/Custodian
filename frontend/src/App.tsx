@@ -1,28 +1,22 @@
 import { useEffect, useState } from "react";
 import { LandingPage } from "./LandingPage";
-
-import { GlobalHeader } from "./components/dashboard/GlobalHeader";
-import type { DashboardPage } from "./components/dashboard/GlobalHeader";
+import { Sidebar } from "./components/dashboard/Sidebar";
+import { TopHeader } from "./components/dashboard/TopHeader";
 import { LiveMonitorPage } from "./components/dashboard/LiveMonitorPage";
 import { AlertsPage } from "./components/dashboard/AlertsPage";
 import { TrafficPage } from "./components/dashboard/TrafficPage";
 import { DetectorsPage } from "./components/dashboard/DetectorsPage";
 import { PerformancePage } from "./components/dashboard/PerformancePage";
+import { DockedReplayPlayer } from "./components/dashboard/DockedReplayPlayer";
 import { LoginModal } from "./components/LoginModal";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { DashboardTelemetryProvider, useDashboard } from "./context/DashboardTelemetryContext";
+import "./styles/dashboard-shadcn.css";
 
-import { useRuntimeTelemetry } from "./hooks/useRuntimeTelemetry";
-import type { AlertRecord } from "./types";
+function DashboardInner({ onNavigateHome, onSignOut }: { onNavigateHome: () => void; onSignOut: () => void }) {
+  const { activeTab, presentationMode, setPresentationMode } = useDashboard();
 
-function DashboardContent() {
-  const [view, setView] = useState<"landing" | "dashboard">("landing");
-  const { user, logout, openAuthModal } = useAuth();
-  const runtime = useRuntimeTelemetry();
-  const [page, setPage] = useState<DashboardPage>("monitor");
-  const [selectedAlert, setSelectedAlert] = useState<AlertRecord | null>(null);
-  const [presentationMode, setPresentationMode] = useState(false);
-
-  // Keyboard: P toggles presentation mode
+  // Keyboard shortcut: P toggles presentation mode
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
@@ -31,26 +25,45 @@ function DashboardContent() {
         !(event.target instanceof HTMLTextAreaElement) &&
         !(event.target instanceof HTMLSelectElement)
       ) {
-        setPresentationMode((current) => !current);
+        setPresentationMode((c) => !c);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [setPresentationMode]);
 
-  // Clear selected alert when run_id changes (new replay session)
-  useEffect(() => {
-    setSelectedAlert(null);
-  }, [runtime.status?.run_id]);
+  return (
+    <div className={`shadcn-dashboard ${presentationMode ? "shad-presentation-mode" : ""}`}>
+      {/* 1. Sleek Left Sidebar (Screenshot 1 & 2) */}
+      <Sidebar onNavigateHome={onNavigateHome} onSignOut={onSignOut} />
 
-  // Keep selected alert in sync with updated alert data
-  useEffect(() => {
-    setSelectedAlert((current) =>
-      current
-        ? runtime.alerts.find((alert) => alert.alert_id === current.alert_id) ?? current
-        : null,
-    );
-  }, [runtime.alerts]);
+      {/* 2. Main Content Area */}
+      <div className="shad-main-area">
+        {/* Top Header */}
+        <TopHeader />
+
+        {/* Page Content with smooth tab transition */}
+        <main key={activeTab} className="shad-page-content">
+          {activeTab === "monitor" && <LiveMonitorPage />}
+          {activeTab === "alerts" && <AlertsPage />}
+          {activeTab === "traffic" && <TrafficPage />}
+          {activeTab === "detectors" && <DetectorsPage />}
+          {activeTab === "performance" && <PerformancePage />}
+        </main>
+      </div>
+
+      {/* 3. Docked Bottom Replay Player */}
+      <DockedReplayPlayer />
+
+      {/* Auth modal if needed */}
+      <LoginModal />
+    </div>
+  );
+}
+
+function MainView() {
+  const [view, setView] = useState<"landing" | "dashboard">("landing");
+  const { user, logout, openAuthModal } = useAuth();
 
   const handleLaunchDashboard = () => {
     if (!user) {
@@ -75,51 +88,16 @@ function DashboardContent() {
   }
 
   return (
-    <div className={`dash-shell ${presentationMode ? "dash-presentation" : ""}`}>
-      <GlobalHeader
-        runtime={runtime}
-        activePage={page}
-        onPageChange={setPage}
-        onNavigateHome={() => setView("landing")}
-        presentationMode={presentationMode}
-        onTogglePresentation={() => setPresentationMode((c) => !c)}
-        onSignOut={handleSignOut}
-      />
-
-      <main className="dash-main">
-        {page === "monitor" ? (
-          <LiveMonitorPage
-            runtime={runtime}
-            selectedAlert={selectedAlert}
-            onSelectAlert={setSelectedAlert}
-          />
-        ) : null}
-
-        {page === "alerts" ? (
-          <AlertsPage
-            alerts={runtime.alerts}
-            selectedAlert={selectedAlert}
-            onSelectAlert={setSelectedAlert}
-            onChanged={runtime.refresh}
-          />
-        ) : null}
-
-        {page === "traffic" ? <TrafficPage runtime={runtime} /> : null}
-
-        {page === "detectors" ? <DetectorsPage runtime={runtime} /> : null}
-
-        {page === "performance" ? <PerformancePage runtime={runtime} /> : null}
-      </main>
-
-      <LoginModal />
-    </div>
+    <DashboardTelemetryProvider onNavigateHome={() => setView("landing")} onSignOut={handleSignOut}>
+      <DashboardInner onNavigateHome={() => setView("landing")} onSignOut={handleSignOut} />
+    </DashboardTelemetryProvider>
   );
 }
 
 export function App() {
   return (
     <AuthProvider>
-      <DashboardContent />
+      <MainView />
     </AuthProvider>
   );
 }
