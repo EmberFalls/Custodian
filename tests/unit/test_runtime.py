@@ -10,6 +10,7 @@ from custodian.config import load_config_bundle
 from custodian.core.enums import AlertDecision, ThreatClass
 from custodian.core.schemas import DetectorVerdict
 from custodian.runtime.engine import CustodianEngine
+from custodian.runtime.event_bus import make_runtime_event
 
 
 def frame(port=50000):
@@ -65,6 +66,26 @@ def test_no_per_packet_features_or_inference():
     engine.finish()
     assert engine.metrics.feature_vectors == 1
     assert not engine._last_packets and not engine._dirty
+
+
+def test_pipeline_flow_event_uses_kafka_protocol_contract():
+    engine = CustodianEngine(config())
+    engine.capture_id = "cap-test"
+    engine.process_frame(100, frame())
+    engine.finish()
+
+    flow_update = next(
+        item for item in engine.pipeline_events if item["event_type"] == "flow_update"
+    )
+    assert flow_update["payload"]["protocol"] == "tcp"
+
+    event = make_runtime_event(
+        event_type="flow_update",
+        payload=flow_update["payload"],
+        run_id=1,
+        capture_id=engine.capture_id,
+    )
+    assert event.payload["protocol"] == "tcp"
 
 
 def test_batches_preserve_order_and_alerts_are_incremental():

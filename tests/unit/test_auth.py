@@ -29,12 +29,41 @@ def test_jwt_token_flow():
 
 
 def test_auth_api_endpoints(tmp_path: Path):
-    db_path = tmp_path / "test_custodian.db"
-    config = load_config_bundle(Path("configs"))
-    new_storage = config.storage.model_copy(update={"database_path": db_path})
-    config = config.model_copy(update={"storage": new_storage})
+    class MemoryRepository:
+        def __init__(self):
+            self.users = {}
 
-    app = create_app(config)
+        def initialize(self):
+            pass
+
+        def apply_retention(self, **kwargs):
+            return {"alerts": 0, "events": 0}
+
+        def list_users(self):
+            return list(self.users.values())
+
+        def upsert_user(self, user_id, username, display_name, password_hash, role):
+            self.users[username.lower()] = {
+                "user_id": user_id,
+                "username": username.lower(),
+                "display_name": display_name,
+                "password_hash": password_hash,
+                "role": role,
+                "created_at": "2026-09-25T00:00:00+00:00",
+            }
+
+        def get_user_by_username(self, username):
+            return self.users.get(username.lower())
+
+        def get_user_by_id(self, user_id):
+            return next((user for user in self.users.values() if user["user_id"] == user_id), None)
+
+        def list_alerts(self, **kwargs):
+            return []
+
+    repository = MemoryRepository()
+    config = load_config_bundle(Path("configs"))
+    app = create_app(config, repository_override=repository)
     client = TestClient(app)
 
     # 1. Fetch demo credentials

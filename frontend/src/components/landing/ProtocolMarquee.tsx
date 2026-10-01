@@ -7,7 +7,7 @@ const PROTOCOLS = [
   { label: "Zero Payload Decryption Guarantee", color: "#f87171" },
   { label: "SHA-256 Capture Hash Sealing", color: "#34d399" },
   { label: "Deterministic Heuristic Scorer", color: "#38bdf8" },
-  { label: "Local-First SQLite Forensics", color: "#a855f7" },
+  { label: "Local-First PostgreSQL Forensics", color: "#a855f7" },
   { label: "QUIC Initial Packet Analysis", color: "#fbbf24" },
 ];
 

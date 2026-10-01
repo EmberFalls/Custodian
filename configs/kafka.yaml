@@ -1,0 +1,9 @@
+# Optional local event transport. The standard demo keeps this disabled.
+enabled: true
+bootstrap_servers:
+  - 127.0.0.1:9092
+topic_prefix: custodian.v1
+consumer_group: custodian-pilot
+max_event_bytes: 262144
+retries: 3
+retry_backoff_seconds: 0.1

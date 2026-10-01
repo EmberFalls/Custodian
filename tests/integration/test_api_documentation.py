@@ -25,12 +25,7 @@ def documented_app(tmp_path: Path, *, storage_enabled: bool = True):
         update={
             "models": config.models.model_copy(update={"models": model_entries}),
             "replay": config.replay.model_copy(update={"capture_root": capture_root}),
-            "storage": config.storage.model_copy(
-                update={
-                    "enabled": storage_enabled,
-                    "database_path": tmp_path / "runtime" / "custodian.sqlite3",
-                }
-            ),
+            "storage": config.storage.model_copy(update={"enabled": storage_enabled}),
         }
     )
     return create_app(config), capture_root
@@ -54,6 +49,10 @@ def test_openapi_inventory_has_human_readable_metadata(tmp_path: Path) -> None:
         ("/health", "get"),
         ("/api/v1/health", "get"),
         ("/api/v1/readiness", "get"),
+        ("/api/v1/live/interfaces", "get"),
+        ("/api/v1/live/status", "get"),
+        ("/api/v1/live/start", "post"),
+        ("/api/v1/live/stop", "post"),
         ("/api/v1/status", "get"),
         ("/api/v1/replay/status", "get"),
         ("/api/v1/captures", "get"),
@@ -140,8 +139,12 @@ def test_documented_http_examples_work_locally(tmp_path: Path) -> None:
             "event_stream",
             "database",
             "models",
+            "redis",
+            "kafka",
+            "live_capture",
             "inputs",
         }
+        assert readiness["components"]["redis"]["status"] == "disabled"
 
         status = client.get("/api/v1/status").json()
         assert client.get("/api/v1/replay/status").json() == status
@@ -183,6 +186,8 @@ def test_documented_http_examples_work_locally(tmp_path: Path) -> None:
             "routing",
             "model_load_errors",
             "inputs",
+            "live_capture",
+            "kafka",
         }
 
         events = client.get("/api/v1/events?after_sequence=0&limit=200").json()

@@ -1,4 +1,3 @@
 enabled: true
-database_path: runtime/custodian.sqlite3
+database_url: postgresql://custodian@127.0.0.1:5432/custodian
 retention_days: 30
-max_database_bytes: 1073741824

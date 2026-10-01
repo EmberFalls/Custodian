@@ -7,14 +7,15 @@ from contextlib import asynccontextmanager
 from hashlib import sha256
 from ipaddress import ip_address
 from pathlib import Path
-from threading import RLock, Thread
+from threading import Event, RLock, Thread
+from time import monotonic
 from typing import Literal
 from uuid import uuid4
 
 from fastapi import Cookie, FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.responses import JSONResponse
 
@@ -27,15 +28,32 @@ from custodian.api.auth import (
 )
 from custodian.config import ConfigBundle, load_config_bundle
 from custodian.core.enums import AlertStatus, CaptureStatus, ReplayMode
-from custodian.core.schemas import AlertRecord, CapturePacketCounts, CaptureRecord
+from custodian.core.schemas import AlertRecord, CapturePacketCounts, CaptureRecord, FlowRecord
 from custodian.exports import ExportService
 from custodian.ingest.pcap import SUPPORTED_DATALINKS, CaptureReader
 from custodian.ingest.replay import ReplayController
 from custodian.ingestion import adapter_statuses
+from custodian.ingestion.live_capture import (
+    CaptureBackend,
+    CaptureBackendError,
+    CaptureBackendUnavailable,
+    CapturePermissionError,
+    InterfaceUnavailable,
+    LiveCaptureSource,
+    PcapyBackend,
+    UnsupportedLinkType,
+    capture_backend_status,
+)
 from custodian.ingestion.validation import CaptureValidator
 from custodian.runtime.engine import CustodianEngine
+from custodian.runtime.event_bus import (
+    InProcessEventBus,
+    KafkaEventBus,
+    MetadataEvent,
+    make_runtime_event,
+)
 from custodian.runtime.events import EventHub
-from custodian.storage import SQLiteRepository
+from custodian.storage import PostgresRepository, RedisLiveStateCache
 
 API_DESCRIPTION = """
 Local, passive-only API for authorized capture-file analysis. Custodian reads packets from
@@ -52,6 +70,7 @@ OPENAPI_TAGS = [
     {"name": "system", "description": "Health, readiness, and diagnostics."},
     {"name": "captures", "description": "Discover and validate confined capture files."},
     {"name": "replay", "description": "Control passive local capture-file processing."},
+    {"name": "live_capture", "description": "Explicitly control passive capture on one selected interface."},
     {"name": "telemetry", "description": "Runtime counters, rates, resources, and status."},
     {"name": "alerts", "description": "Evidence-aware alerts and analyst lifecycle."},
     {"name": "detectors", "description": "Detector/model availability and trust state."},
@@ -65,6 +84,11 @@ class ReplayStartRequest(BaseModel):
     capture: str = Field(min_length=1)
     mode: ReplayMode | None = None
     speed_multiplier: Literal[1, 2, 5, 10] | None = None
+
+
+class LiveCaptureStartRequest(BaseModel):
+    interface_id: str = Field(min_length=1, max_length=512)
+    capture_filter: str | None = Field(default=None, max_length=512)
 
 
 class CaptureValidateRequest(BaseModel):
@@ -85,12 +109,23 @@ class ReplaySession:
         self,
         engine: CustodianEngine,
         config: ConfigBundle,
-        repository: SQLiteRepository | None = None,
+        repository: PostgresRepository | None = None,
         event_hub: EventHub | None = None,
+        live_state: RedisLiveStateCache | None = None,
+        event_bus: KafkaEventBus | InProcessEventBus | None = None,
+        capture_backend: CaptureBackend | None = None,
     ) -> None:
         self.engine, self.config = engine, config
         self.repository = repository
         self.event_hub = event_hub or EventHub()
+        self.live_state = live_state or RedisLiveStateCache(config.redis)
+        self.event_bus = event_bus or KafkaEventBus(config.kafka)
+        self.capture_backend = capture_backend or PcapyBackend()
+        self.live_source: LiveCaptureSource | None = None
+        self.live_stop = Event()
+        self.active_source_type = "PCAP_REPLAY"
+        self.active_capture_filter: str | None = None
+        self.active_interface: str | None = None
         self.capture_root = config.replay.capture_root.resolve()
         self.validator = CaptureValidator(
             self.capture_root, max_size_bytes=config.replay.max_capture_size_bytes
@@ -108,10 +143,113 @@ class ReplaySession:
 
     def _publish(self, event_type: str, payload: dict) -> None:
         event = self.event_hub.publish(event_type, payload, run_id=self.run_id)
+        kafka_event = make_runtime_event(
+            event_type="runtime_event",
+            payload={"application_event_id": event.event_id, "name": event_type},
+            run_id=self.run_id,
+            capture_id=self.engine.capture_id,
+        )
+        try:
+            self.event_bus.publish(kafka_event)
+        except Exception:
+            # Preserve local processing; failure is reported through readiness/diagnostics.
+            pass
+        if self.config.kafka.enabled:
+            self.publish_pipeline_events()
         if self.repository:
             self.repository.record_event(
                 event.event_id, event.event_type, event.model_dump(mode="json")
             )
+        serialized = event.model_dump(mode="json")
+        self.live_state.set_latest_event(serialized)
+        self.live_state.append_recent_event(serialized)
+
+    def publish_pipeline_events(self) -> None:
+        """Publish bounded outputs produced by the current local replay stages."""
+        while self.engine.pipeline_events:
+            item = self.engine.pipeline_events[0]
+            try:
+                event = make_runtime_event(
+                    event_type=item["event_type"],
+                    payload=item["payload"],
+                    run_id=self.run_id,
+                    capture_id=self.engine.capture_id,
+                    correlation_id=str(
+                        item["payload"].get("flow_id")
+                        or item["payload"].get("alert_id")
+                        or item["payload"].get("vector_id")
+                        or self.engine.capture_id
+                        or f"run-{self.run_id}"
+                    ),
+                )
+                self.event_bus.publish(event)
+                self.engine.pipeline_events.pop(0)
+            except Exception as exc:
+                # Keep the event queued and fail this replay visibly.
+                raise RuntimeError(
+                    "Kafka stage event publish failed; event remains queued"
+                ) from exc
+
+    def handle_kafka_event(self, event: MetadataEvent) -> None:
+        """Idempotently store validated stage output, then mirror dashboard state."""
+        if self.repository is None:
+            raise RuntimeError("PostgreSQL unavailable for Kafka event processing")
+        cached_alert = {}
+
+        def apply(connection):
+            result = self.repository.apply_pipeline_event(connection, event)
+            if result:
+                cached_alert.update(result)
+
+        processed = self.repository.process_event_once(event.event_id, apply)
+        if processed:
+            if cached_alert:
+                self.live_state.append_recent_alert(cached_alert)
+            event_run_id = int(event.run_id) if event.run_id.isdecimal() else self.run_id
+            self.event_hub.publish(
+                "pipeline.event",
+                {"event_id": event.event_id, "event_type": event.event_type},
+                run_id=event_run_id,
+            )
+
+    def sync_live_state(self) -> None:
+        """Best-effort mirror of bounded runtime state into the optional cache."""
+
+        status = self.status()
+        detectors = self.engine.detector_status()
+        self.live_state.set_replay_status(status)
+        self.live_state.set_detectors({"run_id": self.run_id, "detectors": detectors})
+        self.live_state.set_telemetry(
+            {
+                "run_id": self.run_id,
+                "status": status,
+                "metrics": self.engine.metrics.snapshot(interval_seconds=self.telemetry_interval),
+                "detectors": detectors,
+            }
+        )
+        if self.config.redis.host_timeline:
+            self.live_state.set_host_timeline(list(self.engine.host_timeline))
+
+    @staticmethod
+    def _alert_summary(alert: AlertRecord) -> dict:
+        """Bounded alert metadata; never raw packets, tokens, or full evidence."""
+
+        return {
+            "alert_id": alert.alert_id,
+            "capture_id": alert.capture_id,
+            "timestamp": alert.timestamp.isoformat(),
+            "threat_class": alert.threat_class.value,
+            "severity": alert.severity.value,
+            "decision": alert.decision.value,
+            "status": alert.status.value,
+            "evidence_quality": alert.evidence_quality.value,
+            "occurrence_count": alert.occurrence_count,
+            "detector_id": alert.detector_id,
+            "model_version": alert.model_version,
+            "calibrated_confidence": alert.calibrated_confidence,
+            "source": alert.source.model_dump(mode="json") if alert.source else None,
+            "destination": alert.destination.model_dump(mode="json") if alert.destination else None,
+        }
 
     def validate(self, capture: str):
         with self._lock:
@@ -142,6 +280,7 @@ class ReplaySession:
         self._publish(
             "capture.ready", {"capture_id": record.capture_id, "name": record.display_name}
         )
+        self.sync_live_state()
         return record
 
     def _set_capture_status(self, status: CaptureStatus, failure_reason: str | None = None) -> None:
@@ -188,6 +327,8 @@ class ReplaySession:
         with self._lock:
             if self.running:
                 raise RuntimeError("a replay is already running")
+            if self.config.kafka.enabled and self.repository is None:
+                raise RuntimeError("Kafka mode requires PostgreSQL durable event processing")
             candidate = self.validator.resolve(capture)
             record = self.validated.get(capture)
             if record is None:
@@ -207,26 +348,178 @@ class ReplaySession:
             self.engine.reset()
             self.engine.capture_id = record.capture_id
             self.capture, self.error = capture, None
+            self.active_source_type = "PCAP_REPLAY"
+            self.active_capture_filter = None
+            self.active_interface = None
             self.capture_size_bytes = reader.size_bytes
             self.state, self.running = "RUNNING", True
             self.run_id += 1
             controller = self.controller
             self._set_capture_status(CaptureStatus.RUNNING)
             self._publish("replay.started", {"capture": capture, "mode": controller.mode.value})
+            self.sync_live_state()
             self._launch(controller)
+
+    def live_interfaces(self) -> dict[str, object]:
+        return capture_backend_status(self.capture_backend)
+
+    def input_statuses(self) -> list[dict[str, object]]:
+        statuses = adapter_statuses()
+        live = self.live_interfaces()
+        for item in statuses:
+            if item["source_type"] == "live_passive":
+                item["status"] = live["status"]
+                item["opens_network_interface"] = False
+                item["reason"] = live["reason"]
+        return statuses
+
+    def live_capture_diagnostics(self) -> dict[str, object]:
+        backend = self.live_interfaces()
+        status = self.status()
+        active = status["source_type"] == "LIVE_PASSIVE" and status["replay_running"]
+        state = status["replay_state"]
+        error = status["error"]
+        if error:
+            capture_status = "degraded"
+            reason = error
+        elif active:
+            capture_status = "capturing"
+            reason = None
+        else:
+            capture_status = backend["status"]
+            reason = backend["reason"]
+        return {
+            "status": capture_status,
+            "backend": backend["backend"],
+            "platform": backend["platform"],
+            "reason": reason,
+            "state": state if status["source_type"] == "LIVE_PASSIVE" else "IDLE",
+            "running": active,
+            "selected_interface": status["selected_interface"],
+            "capture_filter": status["capture_filter"],
+        }
+
+    def start_live(self, interface_id: str, capture_filter: str | None = None) -> None:
+        with self._lock:
+            if self.running:
+                raise RuntimeError("another ingestion session is already running")
+            if self.config.kafka.enabled and self.repository is None:
+                raise RuntimeError("Kafka mode requires PostgreSQL durable event processing")
+            source = LiveCaptureSource.open(self.capture_backend, interface_id, capture_filter)
+            self.engine.reset()
+            self.engine.mode = ReplayMode.FAST
+            self.engine.capture_id = f"live-{uuid4().hex}"
+            self.live_source = source
+            self.live_stop.clear()
+            self.capture = source.interface.name
+            self.active_interface = source.interface.name
+            self.active_capture_filter = source.capture_filter
+            self.active_source_type = "LIVE_PASSIVE"
+            self.capture_size_bytes = 0
+            self.error = None
+            self.state, self.running = "CAPTURING", True
+            self.run_id += 1
+            self._publish(
+                "live_capture.started",
+                {
+                    "interface": source.interface.name,
+                    "capture_filter": source.capture_filter,
+                },
+            )
+            self.sync_live_state()
+            self.thread = Thread(
+                target=self._run_live,
+                args=(source,),
+                name="custodian-live-passive-capture",
+                daemon=True,
+            )
+            self.thread.start()
+
+    def _run_live(self, source: LiveCaptureSource) -> None:
+        self.engine.metrics.begin()
+        last_sync = monotonic()
+        try:
+            while not self.live_stop.is_set():
+                packet = source.next_observation()
+                if packet is not None:
+                    for alert in self.engine.process_observation(packet, packet.packet_length):
+                        if self.repository:
+                            self.repository.upsert_alert(alert, capture_id=self.engine.capture_id)
+                        self.live_state.append_recent_alert(self._alert_summary(alert))
+                        self._publish(
+                            "alert.upserted",
+                            {"alert_id": alert.alert_id, "decision": alert.decision.value},
+                        )
+                    if self.config.kafka.enabled:
+                        self.publish_pipeline_events()
+                if monotonic() - last_sync >= 0.5:
+                    self.sync_live_state()
+                    last_sync = monotonic()
+            for alert in self.engine.finish():
+                if self.repository:
+                    self.repository.upsert_alert(alert, capture_id=self.engine.capture_id)
+                self.live_state.append_recent_alert(self._alert_summary(alert))
+                self._publish(
+                    "alert.upserted",
+                    {"alert_id": alert.alert_id, "decision": alert.decision.value},
+                )
+            self.publish_pipeline_events()
+            if self.repository:
+                for flow in self.engine.recent_flows:
+                    self.repository.upsert_flow(flow, capture_id=self.engine.capture_id)
+            with self._lock:
+                self.state = "STOPPED" if self.live_stop.is_set() else "CAPTURING"
+                if self.live_stop.is_set():
+                    self._publish("live_capture.stopped", {"interface": self.active_interface})
+        except Exception as exc:
+            with self._lock:
+                self.error = str(exc)
+                self.state = "ERROR"
+                self._publish(
+                    "live_capture.failed",
+                    {"interface": self.active_interface, "reason": str(exc)},
+                )
+        finally:
+            try:
+                source.close()
+            except Exception as exc:
+                with self._lock:
+                    self.error = self.error or f"capture resource cleanup failed: {exc}"
+                    self.state = "ERROR"
+            with self._lock:
+                self.live_source = None
+                self.running = False
+                self.sync_live_state()
+
+    def stop_live(self) -> None:
+        with self._lock:
+            if not self.running or self.active_source_type != "LIVE_PASSIVE":
+                raise RuntimeError("no live capture is running")
+            self.state = "STOPPING"
+            self.live_stop.set()
+            self._publish("live_capture.stop_requested", {"interface": self.active_interface})
+            self.sync_live_state()
 
     def _launch(self, controller: ReplayController) -> None:
         def run():
             try:
-                for alert in self.engine.run_controller(controller):
+                for alert in self.engine.run_controller(
+                    controller,
+                    on_stage_events=self.publish_pipeline_events
+                    if self.config.kafka.enabled
+                    else None,
+                ):
                     if self.repository:
                         record = self.validated.get(self.capture or "")
                         capture_id = getattr(record, "capture_id", None)
                         self.repository.upsert_alert(alert, capture_id=capture_id)
+                    self.live_state.append_recent_alert(self._alert_summary(alert))
                     self._publish(
                         "alert.upserted",
                         {"alert_id": alert.alert_id, "decision": alert.decision.value},
                     )
+                    self.sync_live_state()
+                self.publish_pipeline_events()
                 if self.repository:
                     record = self.validated.get(self.capture or "")
                     capture_id = record.capture_id if record else None
@@ -241,12 +534,14 @@ class ReplaySession:
                         "replay.completed" if controller.completed else "replay.stopped",
                         {"capture": self.capture, "progress": controller.progress},
                     )
+                    self.sync_live_state()
             except Exception as exc:
                 with self._lock:
                     self.error = str(exc)
                     self.state = "ERROR"
                     self._set_capture_status(CaptureStatus.FAILED, str(exc))
                     self._publish("replay.failed", {"capture": self.capture, "reason": str(exc)})
+                    self.sync_live_state()
             finally:
                 with self._lock:
                     self.running = False
@@ -307,6 +602,7 @@ class ReplaySession:
                 )
             self._set_capture_status(CaptureStatus.RUNNING)
             self._publish("replay.seeked", {"target_progress": target_progress})
+            self.sync_live_state()
             self._launch(controller)
 
     def pause(self):
@@ -318,6 +614,7 @@ class ReplaySession:
             self.state = "PAUSED"
             self._set_capture_status(CaptureStatus.PAUSED)
             self._publish("replay.paused", {"capture": self.capture})
+            self.sync_live_state()
 
     def resume(self):
         with self._lock:
@@ -328,14 +625,18 @@ class ReplaySession:
             self.state = "RUNNING"
             self._set_capture_status(CaptureStatus.RUNNING)
             self._publish("replay.resumed", {"capture": self.capture})
+            self.sync_live_state()
 
     def stop(self):
+        if self.active_source_type == "LIVE_PASSIVE":
+            return self.stop_live()
         with self._lock:
             if not self.running or self.controller is None:
                 raise RuntimeError("no replay is running")
             self.state = "STOPPING"
             self.controller.stop()
             self._publish("replay.stop_requested", {"capture": self.capture})
+            self.sync_live_state()
 
     def reset(self):
         with self._lock:
@@ -346,6 +647,7 @@ class ReplaySession:
             self.state = "IDLE"
             self.run_id += 1
             self.capture_size_bytes = 0
+            self.sync_live_state()
 
     def status(self):
         controller = self.controller
@@ -357,44 +659,69 @@ class ReplaySession:
             "replay_state": self.state,
             "capture": self.capture,
             "active_flows": self.engine.flows.active_flow_count,
-            "source_type": "PCAP_REPLAY",
+            "source_type": self.active_source_type,
             "source_name": self.capture,
-            "mode": (controller.mode if controller else self.config.replay.mode).value,
+            "mode": (
+                "live"
+                if self.active_source_type == "LIVE_PASSIVE"
+                else (controller.mode if controller else self.config.replay.mode).value
+            ),
             "speed_multiplier": controller.speed_multiplier
             if controller
             else self.config.replay.speed_multiplier,
             "progress": controller.progress if controller else None,
             "rebuilding": bool(controller and controller.rebuilding),
             "rebuild_progress": controller.rebuild_progress if controller else None,
-            "progress_basis": "capture_file_bytes",
+            "progress_basis": (
+                "observed_packets"
+                if self.active_source_type == "LIVE_PASSIVE"
+                else "capture_file_bytes"
+            ),
             "capture_size_bytes": self.capture_size_bytes,
             "processed_capture_bytes": controller.processed_bytes if controller else 0,
             "checkpoint_origin_progress": 0.0 if controller else None,
+            "selected_interface": self.active_interface,
+            "capture_filter": self.active_capture_filter,
             "error": self.error,
             "run_id": self.run_id,
             "telemetry_interval_ms": round(self.telemetry_interval * 1000),
         }
 
 
-def create_app(config: ConfigBundle) -> FastAPI:
+def create_app(
+    config: ConfigBundle,
+    *,
+    live_state: RedisLiveStateCache | None = None,
+    repository_override: PostgresRepository | None = None,
+    capture_backend: CaptureBackend | None = None,
+) -> FastAPI:
     engine = CustodianEngine(config)
-    repository = None
+    repository = repository_override
     storage_error = None
     recovery_warnings: list[str] = []
     if config.storage.enabled:
         try:
-            repository = SQLiteRepository(config.storage.database_path)
+            repository = repository or PostgresRepository(config.storage.database_url)
             repository.initialize()
             seed_demo_users_if_needed(repository)
             repository.apply_retention(
                 retention_days=config.storage.retention_days,
-                max_database_bytes=config.storage.max_database_bytes,
             )
         except Exception as exc:
             storage_error = str(exc)
             repository = None
     event_hub = EventHub(max_events=min(config.defaults.max_temporal_events, 5000))
-    session = ReplaySession(engine, config, repository, event_hub)
+    live_state = live_state or RedisLiveStateCache(config.redis)
+    event_bus = (
+        KafkaEventBus(config.kafka)
+        if config.kafka.enabled
+        else InProcessEventBus(max_events=min(config.defaults.max_temporal_events, 5000))
+    )
+    session = ReplaySession(
+        engine, config, repository, event_hub, live_state, event_bus, capture_backend
+    )
+    consumer_stop = asyncio.Event()
+    consumer_thread: Thread | None = None
     if repository:
         for payload in reversed(repository.list_alerts(limit=min(config.defaults.max_alerts, 500))):
             try:
@@ -404,11 +731,39 @@ def create_app(config: ConfigBundle) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app):
+        nonlocal consumer_thread
+        if config.kafka.enabled:
+            try:
+                event_bus.start_consumer()
+                consumer_stop.clear()
+
+                def consume():
+                    while not consumer_stop.is_set():
+                        try:
+                            event_bus.consume_once(session.handle_kafka_event)
+                        except Exception as exc:
+                            event_bus._error = f"consumer loop failed ({type(exc).__name__})"
+                            consumer_stop.wait(min(config.kafka.retry_backoff_seconds or 0.1, 5))
+
+                consumer_thread = Thread(
+                    target=consume, name="custodian-kafka-consumer", daemon=True
+                )
+                consumer_thread.start()
+            except Exception:
+                # Readiness reports degraded; replay continues without network actions.
+                pass
         yield
+        consumer_stop.set()
+        if consumer_thread:
+            await asyncio.to_thread(consumer_thread.join, 2)
         if session.running and session.controller:
             session.controller.stop()
+        if session.running and session.active_source_type == "LIVE_PASSIVE":
+            session.live_stop.set()
         if session.thread:
             await asyncio.to_thread(session.thread.join, 2)
+        live_state.close()
+        event_bus.close()
 
     app = FastAPI(
         title="Custodian API",
@@ -422,6 +777,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
     )
     app.state.engine, app.state.session = engine, session
     app.state.repository, app.state.event_hub = repository, event_hub
+    app.state.live_state = live_state
 
     @app.middleware("http")
     async def correlation_id(request: Request, call_next):
@@ -572,9 +928,23 @@ def create_app(config: ConfigBundle) -> FastAPI:
             for item in model_status
         }
         database_ready = repository is not None and not recovery_warnings
+        database_reason = "; ".join(recovery_warnings) or storage_error
+        if repository is not None:
+            try:
+                repository.health_check()
+            except Exception:
+                database_ready = False
+                database_reason = "PostgreSQL is unavailable"
+        else:
+            database_reason = database_reason or "Persistence is disabled"
+        database_status = (
+            "degraded" if recovery_warnings else "ready" if database_ready else "unavailable"
+        )
         return {
             "status": "ready"
-            if database_ready and all(item["enabled"] for item in model_status)
+            if database_ready
+            and all(item["enabled"] for item in model_status)
+            and event_bus.readiness()["status"] != "degraded"
             else "degraded",
             "passive_only": True,
             "outbound_traffic_path": False,
@@ -582,24 +952,19 @@ def create_app(config: ConfigBundle) -> FastAPI:
                 "parser": {"status": "ready", "reason": None},
                 "event_stream": {"status": "ready", "reason": None},
                 "database": {
-                    "status": "degraded"
-                    if recovery_warnings
-                    else "ready"
-                    if repository
-                    else "unavailable",
-                    "reason": "; ".join(recovery_warnings)
-                    if recovery_warnings
-                    else None
-                    if repository
-                    else storage_error or "Persistence is disabled",
+                    "status": database_status,
+                    "reason": database_reason if database_reason or not database_ready else None,
                 },
                 "models": model_components,
+                "redis": live_state.readiness(),
+                "kafka": event_bus.readiness(),
+                "live_capture": session.live_capture_diagnostics(),
                 "inputs": {
                     item["source_type"]: {
                         "status": item["status"],
                         "reason": item["reason"],
                     }
-                    for item in adapter_statuses()
+                    for item in session.input_statuses()
                 },
             },
         }
@@ -615,6 +980,26 @@ def create_app(config: ConfigBundle) -> FastAPI:
     )
     def replay_status():
         return status()
+
+    @app.get("/api/v1/live/interfaces", tags=["live_capture"])
+    def live_interfaces():
+        return session.live_interfaces()
+
+    @app.get("/api/v1/live/status", tags=["live_capture"])
+    def live_capture_status():
+        return {
+            "status": session.state
+            if session.active_source_type == "LIVE_PASSIVE"
+            else "IDLE",
+            "source_type": session.active_source_type,
+            "interface": session.active_interface,
+            "capture_filter": session.active_capture_filter,
+            "running": session.running
+            and session.active_source_type == "LIVE_PASSIVE",
+            "error": session.error
+            if session.active_source_type == "LIVE_PASSIVE"
+            else session.live_interfaces()["reason"],
+        }
 
     @app.get("/api/v1/captures", tags=["captures"], summary="List confined capture candidates")
     def captures():
@@ -647,6 +1032,14 @@ def create_app(config: ConfigBundle) -> FastAPI:
     def alerts(limit: int = 100, offset: int = 0):
         if not 1 <= limit <= 500 or offset < 0:
             raise HTTPException(status_code=400, detail="invalid alert pagination")
+        if repository is not None:
+            try:
+                # PostgreSQL orders newest first for paging; the UI consumes oldest to newest.
+                return list(reversed(repository.list_alerts(limit=limit, offset=offset)))
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503, detail="PostgreSQL alert storage is unavailable"
+                ) from exc
         records = list(engine.alerts)
         end = max(len(records) - offset, 0)
         start = max(end - limit, 0)
@@ -717,10 +1110,25 @@ def create_app(config: ConfigBundle) -> FastAPI:
     def flows(limit: int = 100):
         if not 1 <= limit <= 500:
             raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
-        active = list(engine.flows.snapshots(limit=limit))
-        remaining = max(limit - len(active), 0)
-        completed = list(engine.recent_flows)[-remaining:] if remaining else []
-        return [flow.model_dump(mode="json") for flow in active + completed]
+        current = list(engine.flows.snapshots(limit=limit))
+        remaining = max(limit - len(current), 0)
+        current.extend(list(engine.recent_flows)[-remaining:] if remaining else [])
+        combined = {flow.flow_id: flow for flow in current}
+        if repository is not None:
+            try:
+                for payload in repository.list_flows(limit=limit):
+                    try:
+                        flow = FlowRecord.model_validate(payload)
+                    except ValidationError:
+                        # Kafka's minimized flow event is not a full dashboard FlowRecord.
+                        continue
+                    combined.setdefault(flow.flow_id, flow)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503, detail="PostgreSQL flow storage is unavailable"
+                ) from exc
+        records = sorted(combined.values(), key=lambda flow: flow.last_seen)
+        return [flow.model_dump(mode="json") for flow in records[-limit:]]
 
     @app.get(
         "/api/v1/timeline",
@@ -753,7 +1161,9 @@ def create_app(config: ConfigBundle) -> FastAPI:
         return {
             "routing": list(engine.routing_diagnostics),
             "model_load_errors": dict(engine._load_errors),
-            "inputs": adapter_statuses(),
+            "inputs": session.input_statuses(),
+            "live_capture": session.live_capture_diagnostics(),
+            "kafka": event_bus.readiness(),
         }
 
     @app.get("/api/v1/events", tags=["events"], summary="Poll events after a sequence cursor")
@@ -790,9 +1200,7 @@ def create_app(config: ConfigBundle) -> FastAPI:
                 }
                 for item in detectors()
             ]
-            path = ExportService(
-                repository, config.storage.database_path.parent / "reports"
-            ).export_alerts(
+            path = ExportService(repository, Path("runtime/reports")).export_alerts(
                 request.format,
                 metadata={
                     "configuration_fingerprint": sha256(
@@ -820,7 +1228,11 @@ def create_app(config: ConfigBundle) -> FastAPI:
         summary="Get combined status, metrics, and detector state",
     )
     def telemetry():
-        return {"status": status(), "metrics": metrics(), "detectors": detectors()}
+        snapshot = {"status": status(), "metrics": metrics(), "detectors": detectors()}
+        live_state.set_replay_status(snapshot["status"])
+        live_state.set_detectors({"run_id": session.run_id, "detectors": snapshot["detectors"]})
+        live_state.set_telemetry({**snapshot, "run_id": session.run_id})
+        return snapshot
 
     @app.post("/api/v1/replay/start", tags=["replay"], summary="Start passive file replay")
     def start_replay(request: ReplayStartRequest):
@@ -836,6 +1248,26 @@ def create_app(config: ConfigBundle) -> FastAPI:
         except RuntimeError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"status": result}
+
+    @app.post("/api/v1/live/start", tags=["live_capture"])
+    def start_live_capture(request: LiveCaptureStartRequest):
+        try:
+            session.start_live(request.interface_id, request.capture_filter)
+        except CaptureBackendUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except CapturePermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except InterfaceUnavailable as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except UnsupportedLinkType as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except (ValueError, CaptureBackendError, RuntimeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return session.status()
+
+    @app.post("/api/v1/live/stop", tags=["live_capture"])
+    def stop_live_capture():
+        return control(session.stop_live, "stopping")
 
     @app.post("/api/v1/replay/pause", tags=["replay"], summary="Pause active file replay")
     def pause_replay():

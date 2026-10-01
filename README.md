@@ -34,7 +34,7 @@ The latest external checks show mixed generalisation. In particular, the Behavio
 - Explicit capability checks, evidence sufficiency and unknown/insufficient-evidence handling.
 - Severity scoring, alert deduplication and acknowledge/close lifecycle.
 - Replay start, pause, resume, stop, reset, speed control and forward/backward seeking.
-- Local SQLite persistence, bounded retention and JSON/CSV exports.
+- PostgreSQL persistence, age-based retention and JSON/CSV exports.
 - REST and WebSocket APIs with interactive OpenAPI documentation.
 - A responsive React dashboard for monitoring, investigation, traffic, detector readiness and measured performance.
 
@@ -58,7 +58,7 @@ flowchart LR
     H4 --> I
     I --> J[Evidence gate and fusion]
     J --> K[Severity and deduplication]
-    K --> L[(SQLite and event stream)]
+    K --> L[(PostgreSQL and event stream)]
     L --> M[FastAPI REST/WebSocket API]
     M --> N[React analyst dashboard]
 ```
@@ -74,7 +74,7 @@ flowchart LR
 7. The approved model package performs inference and probability calibration using its recorded decision policy.
 8. The evidence gate checks whether the passive observation actually supports the predicted class.
 9. Accepted decisions become Pydantic-validated alerts with confidence, evidence, limitations and provenance. Repeated findings are deduplicated rather than silently multiplied.
-10. SQLite, REST endpoints and WebSocket events expose the same backend records to the dashboard.
+10. PostgreSQL, REST endpoints and WebSocket events expose the same backend records to the dashboard.
 
 This separation lets a later authorized passive live-capture adapter emit the same packet-observation contract without redesigning the downstream pipeline. Live-interface capture is not currently activated.
 
@@ -98,7 +98,7 @@ Detector families report their own readiness. A missing or invalid artifact does
 
 ### Bounded local operation
 
-Active flows, temporal events, retained alerts, database size and capture size are bounded through configuration. This keeps the MVP predictable on one laptop.
+Active flows, temporal events, retained alerts, and capture size are bounded through configuration. PostgreSQL retention is age-based; database volume capacity is managed by the local PostgreSQL service.
 
 ## Technology stack
 
@@ -110,7 +110,7 @@ Active flows, temporal events, retained alerts, database size and capture size a
 | Packet parsing | `dpkt` | Passive capture decoding |
 | Data/feature work | NumPy, pandas, PyArrow | Vectorised preparation and feature conversion |
 | ML | scikit-learn, XGBoost, joblib | Training, calibration, serialization and inference |
-| Persistence | SQLite | Local users, alerts, events, flows and checkpoints |
+| Persistence | PostgreSQL | Local users, alerts, events, flows and checkpoints |
 | Authentication | Argon2id + JWT | Local MVP accounts and session tokens |
 | Runtime telemetry | psutil + internal metrics | CPU, memory, throughput and latency measurement |
 | Frontend | React + TypeScript | Analyst-facing application |
@@ -135,7 +135,7 @@ Custodian/
 ├── model_artifacts/          Four reviewed and hash-verified demo packages
 ├── notebooks/                Hosted-Colab training workflows
 ├── reports/                  Versioned validation reports
-├── runtime/                  Local SQLite/runtime state; ignored by Git
+├── runtime/                  Local reports/runtime state; ignored by Git
 ├── src/custodian/            Main Python package
 │   ├── alerts/               Alert construction, severity and deduplication
 │   ├── api/                  FastAPI routes and local authentication
@@ -151,7 +151,7 @@ Custodian/
 │   ├── parsing/              Packet, DNS and TLS/QUIC metadata parsing
 │   ├── runtime/              End-to-end engine and benchmarking
 │   ├── state/                Bounded temporal windows
-│   ├── storage/              SQLite repository
+│   ├── storage/              PostgreSQL repository and optional Redis cache
 │   └── telemetry/            Runtime metrics
 ├── tests/                    Unit and integration coverage
 ├── tools/                    Safe sample/mock capture generators
@@ -162,12 +162,15 @@ Custodian/
 
 ## Quick start
 
+For a command-by-command Windows PowerShell walkthrough, see [How to run Custodian](docs/HOW_TO_RUN.md).
+
 ### Prerequisites
 
 - Git
 - Python 3.11 or newer
 - Node.js with npm
 - PowerShell on Windows, or an equivalent terminal on Linux/macOS
+- Docker Desktop or Docker Engine for the local PostgreSQL service
 
 Training datasets are **not required** to run the application. The four reviewed inference packages are distributed under `model_artifacts/`. Capture files remain intentionally excluded from Git.
 
@@ -198,7 +201,23 @@ python3 -m venv .venv
 
 Dependency installation requires temporary internet access. Dataset processing and model training are separate workflows and should remain isolated.
 
-### 3. Install frontend dependencies
+### 3. Start PostgreSQL
+
+Copy `.env.pilot.example` to `.env` and replace the placeholder database password.
+Copy `configs/storage.pilot.example.yaml` to `configs/storage.local.yaml` and
+use the same password in its local `database_url`. Then start the PostgreSQL
+service:
+
+```powershell
+docker compose -f docker-compose.pilot.yml up -d postgres
+```
+
+PostgreSQL binds to `127.0.0.1:5432`; Custodian creates or updates its schema
+when the API starts. To stop it, use
+`docker compose -f docker-compose.pilot.yml stop postgres`. The Compose volume
+preserves database data across restarts.
+
+### 4. Install frontend dependencies
 
 ```powershell
 Set-Location frontend
@@ -206,13 +225,13 @@ npm ci
 Set-Location ..
 ```
 
-### 4. Add an authorized capture
+### 5. Add an authorized capture
 
 Place a valid `.cap`, `.pcap`, or `.pcapng` directly inside `data/demo/`. Do not add confidential captures or downloaded research datasets to Git.
 
 A filename extension does not convert a file. Custodian checks the underlying capture header and supported link type before replay.
 
-### 5. Verify all model packages
+### 6. Verify all model packages
 
 Windows PowerShell:
 
@@ -234,7 +253,7 @@ The command checks pinned dependency versions, artifact hashes, schemas, class m
 
 The current reviewed packages can also produce serialization-version warnings while still loading successfully. `demo-check` exposes the recorded serialization versions and warning count so this compatibility debt is visible rather than hidden; final production artifacts should be re-exported with the exact deployment library versions.
 
-### 6. Start the backend
+### 7. Start the backend
 
 Keep the model configuration environment variable in the same terminal:
 
@@ -244,7 +263,7 @@ Keep the model configuration environment variable in the same terminal:
 
 The service is deliberately bound to the loopback interface. API documentation is available at <http://127.0.0.1:8000/docs>.
 
-### 7. Start the frontend
+### 8. Start the frontend
 
 Open a second terminal:
 
@@ -255,7 +274,7 @@ npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 
 Open <http://127.0.0.1:5173/>. Vite proxies `/api` and API WebSocket traffic to `127.0.0.1:8000`.
 
-### 8. Use the website
+### 9. Use the website
 
 1. Sign in with one of the clearly labelled local demo roles supplied by the login screen.
 2. Open **Detectors** and confirm that all four families report `READY`.
@@ -282,9 +301,9 @@ Press `Ctrl+C` in the frontend terminal and then in the backend terminal.
 | `configs/models.demo.yaml` | Four-model localhost showcase configuration |
 | `configs/evidence.yaml` | Capability and evidence requirements per threat class |
 | `configs/severity.yaml` | Threat-to-severity policy |
-| `configs/storage.yaml` | SQLite path, retention and maximum size |
+| `configs/storage.yaml` | PostgreSQL connection URL and retention period |
 
-`CUSTODIAN_MODELS_CONFIG` selects a model configuration filename within `configs/`. Machine-specific `*.local.yaml` files are ignored by Git.
+`CUSTODIAN_MODELS_CONFIG` selects a model configuration filename within `configs/`. `CUSTODIAN_DATABASE_URL` overrides the PostgreSQL URL. Machine-specific `*.local.yaml` files are ignored by Git.
 
 Do not mark an arbitrary artifact `trusted: true` merely to make the dashboard green. The trust flag means the local operator approved that exact package after reviewing provenance, hashes, schema compatibility and allowed use.
 
@@ -405,14 +424,14 @@ $env:CUSTODIAN_MODELS_CONFIG = 'models.demo.yaml'
 - Inference supports batches and a configurable batch timeout.
 - Telemetry and event histories are bounded.
 - Detector failures are isolated by family.
-- SQLite retention and maximum database size are configurable.
+- PostgreSQL retention is configurable by age; the Docker volume is managed by PostgreSQL.
 - The API separates ingestion/runtime services from frontend presentation.
 - Feature schemas and artifact packages are versioned, allowing model replacement without rewriting the UI.
 
 ### Current single-node limits
 
 - The runtime and model inference execute in one local Python application.
-- SQLite is appropriate for the MVP but not for high-write multi-node deployments.
+- The current pipeline and inference still run in one application process; PostgreSQL does not make replay processing multi-node.
 - WebSocket fan-out is intended for a small number of local clients.
 - Capture processing is not partitioned across workers or sensors.
 - Model artifacts are loaded per application process.
@@ -428,7 +447,7 @@ For a larger deployment, preserve the existing contracts and split the system at
 3. Partition flow ownership by a stable bidirectional-flow hash so both directions reach the same worker.
 4. Replace in-process events with a durable stream such as Kafka, Redpanda or NATS JetStream.
 5. Scale feature/inference workers horizontally, with versioned model rollout and per-family health checks.
-6. Move operational records to PostgreSQL and time-series telemetry to an appropriate metrics backend.
+6. Add time-series telemetry to an appropriate metrics backend.
 7. Add backpressure, sampling policy, high-cardinality controls and dead-letter handling.
 8. Introduce production identity, secrets, TLS, tenant isolation and immutable audit records.
 9. Add drift monitoring, shadow deployment, canary promotion and rollback for model updates.
@@ -494,6 +513,9 @@ Check that the applicable detector reports `READY`, then inspect flows and evide
 - [Implementation status](docs/IMPLEMENTATION_STATUS.md)
 - [Architecture](docs/architecture.md)
 - [API reference](docs/api.md)
+- [Controlled pilot data layer (optional Redis cache)](docs/CONTROLLED_PILOT_DATA_LAYER.md)
+- [PostgreSQL pilot storage](docs/POSTGRES_PILOT.md)
+- [Optional Kafka pilot event transport](docs/KAFKA_PILOT.md)
 - [Website runtime expectations](docs/WEBSITE_RUNTIME_EXPECTATIONS.md)
 - [Judge demonstration runbook](docs/demo-runbook.md)
 - [External model validation](docs/EXTERNAL_MODEL_VALIDATION.md)

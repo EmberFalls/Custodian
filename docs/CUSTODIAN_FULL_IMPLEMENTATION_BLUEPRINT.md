@@ -90,7 +90,7 @@ Offline capture ---------+          +--------- Passive interface
                            |
                   Fusion and evidence
                            |
-             SQLite, local API, event stream
+             PostgreSQL, local API, event stream
                            |
                   Custodian dashboard
 ```
@@ -275,7 +275,7 @@ Severity ranks operational importance from calibrated confidence band, affected 
 
 ## 13. Persistence and exports
 
-Use migration-controlled SQLite with at least: captures, flow summaries, feature-window references, detector results, alerts, evidence, replay checkpoints, model registry, application events, and schema migrations. Use transactions and a bounded single-writer strategy. Retention is configurable by age and size; raw packet bytes are not stored by default.
+Use migration-controlled PostgreSQL with at least: captures, flow summaries, feature-window references, detector results, alerts, evidence, replay checkpoints, model registry, application events, users, processed event IDs, and schema migrations. Use transactions and bounded connection timeouts. Retention is configurable by age; raw packet bytes are not stored by default.
 
 JSON/CSV and optional printable exports include generation time, application version, capture identity/hash, active model/feature versions, configuration fingerprint, limitations, and mock status. Sanitize filenames and escape spreadsheet formulas.
 
@@ -592,7 +592,7 @@ Planning-scale ranges for behavior, DNS, and encrypted-session examples are opti
 
 ### 26.1 Recommended stack and machine profile
 
-Use Python 3.11+ with Pydantic/Pydantic Settings, NumPy, one primary dataframe library, scikit-learn, XGBoost or LightGBM, YAML support, a bounded PCAP parser such as `dpkt`, FastAPI/Uvicorn, WebSocket support, SQLite/SQLAlchemy or equivalent, PyArrow for offline tables, and `psutil`. Zeek may be an optional external metadata tool; Scapy and tshark/pyshark may assist development or validation but are not mandatory core runtime dependencies.
+Use Python 3.11+ with Pydantic/Pydantic Settings, NumPy, one primary dataframe library, scikit-learn, XGBoost or LightGBM, YAML support, a bounded PCAP parser such as `dpkt`, FastAPI/Uvicorn, WebSocket support, PostgreSQL/psycopg, PyArrow for offline tables, and `psutil`. Zeek may be an optional external metadata tool; Scapy and tshark/pyshark may assist development or validation but are not mandatory core runtime dependencies.
 
 Recommended development hardware is a modern multicore CPU, 16 GB RAM workable and 32 GB preferred, SSD storage with space for captures, and an optional RTX 3050-class GPU. CPU must remain sufficient for V1; likely bottlenecks are parsing, state maintenance, preprocessing, and disk I/O rather than GPU inference.
 

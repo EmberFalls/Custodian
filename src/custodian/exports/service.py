@@ -9,7 +9,7 @@ import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 
-from custodian.storage import SQLiteRepository
+from custodian.storage import PostgresRepository
 
 
 def escape_spreadsheet_value(value: object) -> str:
@@ -22,7 +22,7 @@ def escape_spreadsheet_value(value: object) -> str:
 class ExportService:
     """Write reports only beneath a configured local output directory."""
 
-    def __init__(self, repository: SQLiteRepository, output_root: str | Path) -> None:
+    def __init__(self, repository: PostgresRepository, output_root: str | Path) -> None:
         self.repository = repository
         self.output_root = Path(output_root).resolve()
 

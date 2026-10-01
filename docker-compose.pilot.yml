@@ -1,0 +1,81 @@
+# Local controlled-pilot services for Custodian.
+#
+# PostgreSQL is the durable local database. Redis and Kafka are optional pilot
+# services. Published host ports bind only to loopback.
+#
+#   docker compose -f docker-compose.pilot.yml up -d
+#   docker compose -f docker-compose.pilot.yml down
+#
+# Never commit .env or real database passwords.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: custodian-pilot-postgres
+    environment:
+      POSTGRES_DB: ${CUSTODIAN_POSTGRES_DB:-custodian}
+      POSTGRES_USER: ${CUSTODIAN_POSTGRES_USER:-custodian}
+      POSTGRES_PASSWORD: ${CUSTODIAN_POSTGRES_PASSWORD:?Set CUSTODIAN_POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - custodian-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+  kafka:
+    image: redpandadata/redpanda:v24.2.18
+    container_name: custodian-pilot-kafka
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 768M
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - internal://kafka:29092,external://127.0.0.1:9092
+    ports:
+      - "127.0.0.1:9092:9092"
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health", "--api-urls", "127.0.0.1:9644"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    container_name: custodian-pilot-redis
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --protected-mode
+      # Docker Desktop forwards localhost traffic from a non-loopback container
+      # address. The published host port remains restricted to 127.0.0.1 below.
+      - "no"
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+volumes:
+  custodian-postgres:

@@ -1,18 +1,27 @@
 """API integration tests that do not rely on a model mock or demo capture."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from custodian.api.app import create_app
 from custodian.config import load_config_bundle
+from custodian.core.enums import TransportProtocol
+from custodian.core.schemas import Endpoint, FlowRecord, NumericStats
 
 
 def config_without_artifacts():
     root = Path(__file__).resolve().parents[2]
     config = load_config_bundle(root / "configs")
     for name, entry in config.models.models.items():
-        config.models.models[name] = entry.model_copy(update={"artifact_path": None})
+        variants = {
+            variant_name: variant.model_copy(update={"artifact_path": None, "trusted": False})
+            for variant_name, variant in entry.variants.items()
+        }
+        config.models.models[name] = entry.model_copy(
+            update={"artifact_path": None, "trusted": False, "variants": variants}
+        )
     return config
 
 
@@ -26,6 +35,8 @@ def test_health_and_detector_status_are_honest_about_missing_artifacts() -> None
     assert readiness["status"] == "degraded"
     assert readiness["passive_only"] is True
     assert readiness["outbound_traffic_path"] is False
+    assert readiness["components"]["kafka"]["status"] == "disabled"
+    assert client.get("/api/v1/diagnostics").json()["kafka"]["enabled"] is False
     status = client.get("/api/v1/status").json()
     assert status["source_type"] == "PCAP_REPLAY"
     assert status["mode"] == "paced"
@@ -45,6 +56,54 @@ def test_health_and_detector_status_are_honest_about_missing_artifacts() -> None
     export = client.post("/api/v1/exports", json={"format": "json"})
     assert export.status_code == 200
     assert export.json()["directory"] == "runtime/reports"
+
+
+def test_dashboard_alert_and_flow_lists_read_postgres_repository():
+    app = create_app(config_without_artifacts())
+    app.state.repository.alerts["persisted-alert"] = {
+        "alert_id": "persisted-alert",
+        "status": "open",
+        "decision": "ACCEPT",
+    }
+    observed_at = datetime(2026, 9, 25, tzinfo=UTC)
+    flow = FlowRecord(
+        flow_id="persisted-flow",
+        start_time=observed_at,
+        last_seen=observed_at,
+        endpoint_a=Endpoint(ip="192.0.2.10", port=50000),
+        endpoint_b=Endpoint(ip="192.0.2.20", port=443),
+        protocol=TransportProtocol.TCP,
+        packets_a_to_b=1,
+        packets_b_to_a=0,
+        bytes_a_to_b=64,
+        bytes_b_to_a=0,
+        packet_size_stats=NumericStats(count=1, minimum=64, maximum=64, mean=64, variance=0),
+        inter_arrival_stats=NumericStats(count=0),
+    )
+    app.state.repository.upsert_flow(flow)
+
+    with TestClient(app) as client:
+        alerts = client.get("/api/v1/alerts").json()
+        flows = client.get("/api/v1/flows").json()
+
+    assert [item["alert_id"] for item in alerts] == ["persisted-alert"]
+    assert [item["flow_id"] for item in flows] == ["persisted-flow"]
+
+
+def test_readiness_reports_postgres_disconnect_after_startup():
+    app = create_app(config_without_artifacts())
+
+    def disconnected():
+        raise ConnectionError("test database stopped")
+
+    app.state.repository.health_check = disconnected
+    with TestClient(app) as client:
+        readiness = client.get("/api/v1/readiness").json()
+    assert readiness["status"] == "degraded"
+    assert readiness["components"]["database"] == {
+        "status": "unavailable",
+        "reason": "PostgreSQL is unavailable",
+    }
 
 
 def test_replay_modes_progress_and_reset(tmp_path):

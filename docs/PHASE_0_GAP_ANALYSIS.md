@@ -33,7 +33,7 @@ Implementation may proceed on the application, but model training, dataset acqui
 - At the recorded baseline the internal namespace was still `sentinelx`; the blueprint requires `custodian` everywhere.
 - Capture identity/manifest contract, richer ObservationFrame, capability router, evidence-contract provenance, dual confidence signals, and ProofStreamAlert are incomplete.
 - Replay lacks validate/ready states, seek/checkpoint rebuild, capture listing, stable event stream, and idempotent persistence.
-- SQLite migrations/repositories, alert lifecycle, exports, retention, restart recovery, and correlation timelines are absent.
+- At the analysis baseline, persistence, alert lifecycle, exports, retention, restart recovery, and correlation timelines were absent; the current runtime now uses PostgreSQL for persistence.
 - API v1 coverage/readiness/pagination/correlation errors is partial.
 - DNS and encrypted-session detectors have no approved trained artifacts and must remain unavailable.
 - Behavior artifact is locally present but was created before the newly confirmed isolation policy; it must not be loaded or represented as approved until provenance and VM handling are reviewed.
@@ -54,7 +54,7 @@ The workspace contains ignored local demo captures, large CSVs, one processed Pa
 
 ## Dependencies
 
-Current core dependencies cover Python 3.11+, Pydantic, DPkt, FastAPI/Uvicorn, NumPy/pandas/PyArrow, scikit-learn/XGBoost, psutil, YAML, Joblib, and websockets. Full implementation additionally needs a migration-controlled SQLite layer, structured event transport, frontend tests, type checking, property/fuzz testing, dependency auditing, and reproducible lock metadata. New dependencies will be added only when a phase needs them and after reviewing their network and artifact implications.
+Current core dependencies cover Python 3.11+, Pydantic, DPkt, FastAPI/Uvicorn, NumPy/pandas/PyArrow, scikit-learn/XGBoost, psycopg/PostgreSQL, psutil, YAML, Joblib, and websockets. Full implementation additionally needs structured event transport, frontend tests, type checking, property/fuzz testing, dependency auditing, and reproducible lock metadata. New dependencies will be added only when a phase needs them and after reviewing their network and artifact implications.
 
 ## Implementation order
 

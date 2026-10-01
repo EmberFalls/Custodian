@@ -24,7 +24,33 @@ def test_repository_config_bundle_loads() -> None:
     assert not bundle.models.models[FeatureFamily.DNS].variants["dga"].enabled
     assert not bundle.models.models[FeatureFamily.TLS_QUIC].enabled
     assert bundle.storage.enabled
-    assert bundle.storage.database_path.name == "custodian.sqlite3"
+    assert bundle.storage.database_url == "postgresql://custodian@127.0.0.1:5432/custodian"
+    assert not bundle.kafka.enabled
+    assert bundle.kafka.bootstrap_servers == ("127.0.0.1:9092",)
+
+
+def test_kafka_environment_overrides(monkeypatch) -> None:
+    config_dir = Path(__file__).resolve().parents[2] / "configs"
+    monkeypatch.setenv("CUSTODIAN_KAFKA_ENABLED", "true")
+    monkeypatch.setenv("CUSTODIAN_KAFKA_MAX_EVENT_BYTES", "4096")
+    monkeypatch.setenv("CUSTODIAN_KAFKA_RETRIES", "1")
+    bundle = load_config_bundle(config_dir)
+    assert bundle.kafka.enabled
+    assert bundle.kafka.max_event_bytes == 4096
+    assert bundle.kafka.retries == 1
+
+
+def test_postgres_environment_override_and_remote_hosts_are_rejected(monkeypatch) -> None:
+    from custodian.config import StorageSettings
+
+    config_dir = Path(__file__).resolve().parents[2] / "configs"
+    monkeypatch.setenv(
+        "CUSTODIAN_DATABASE_URL",
+        "postgresql://custodian:secret@127.0.0.1:5432/custodian",
+    )
+    assert load_config_bundle(config_dir).storage.database_url.endswith("/custodian")
+    with pytest.raises(ValidationError, match="loopback"):
+        StorageSettings(database_url="postgresql://db.example:5432/custodian")
 
 
 def test_local_models_config_can_be_selected_explicitly(tmp_path, monkeypatch) -> None:

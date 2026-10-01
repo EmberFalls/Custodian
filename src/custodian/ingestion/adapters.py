@@ -60,7 +60,7 @@ def adapter_statuses() -> list[dict[str, object]]:
     disabled = {
         SourceType.ZEEK_METADATA: "derived-metadata adapter is not implemented",
         SourceType.LIVE_PASSIVE: (
-            "disabled pending explicit user approval and passive-interface review"
+            "optional backend is available; capture begins only after explicit interface selection"
         ),
         SourceType.NETFLOW: "NetFlow adapter is not implemented",
         SourceType.IPFIX: "IPFIX adapter is not implemented",

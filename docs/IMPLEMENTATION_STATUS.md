@@ -15,7 +15,7 @@
 - Trusted-artifact loading gate, per-family readiness isolation, feature-range distribution-support checks, passive shadow-observation helpers, and conservative fusion policy.
 - Deterministic replay modes, pause/resume/stop, forward/backward seek, visible rebuild state, and an honest origin checkpoint strategy.
 - Alert repetition upserts, first/last seen, occurrence count, acknowledge/close lifecycle, and deterministic policy provenance.
-- Migration-controlled local SQLite persistence, bounded retention, restart recovery, events, flow summaries, checkpoints, and parameterized queries.
+- Migration-controlled local PostgreSQL persistence, age-based retention, restart recovery, events, flow summaries, checkpoints, and parameterized queries.
 - JSON/CSV exports with timestamp, application/version, capture/config/model provenance, limitations, mock status, bounded output location, and spreadsheet-formula escaping.
 - Versioned localhost API, stable validation errors with correlation IDs, bounded queries, capture browser, flows, alerts, diagnostics, readiness, host timeline, and resumable application events.
 - Responsive dashboard with validated capture selection, replay/seek controls, measured telemetry, filterable/sortable color-and-text alert table, alert inspector/lifecycle, host evidence timeline, detector readiness, input-adapter diagnostics, and reconnect/resynchronization behavior.

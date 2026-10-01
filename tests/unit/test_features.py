@@ -9,6 +9,7 @@ from custodian.features.dns import DNSFeatureExtractor, dns_lexical_values
 from custodian.features.tls_quic import TLSQUICFeatureExtractor
 from custodian.flow.manager import FlowManager
 from custodian.observation.capabilities import build_capability_profile
+from custodian.runtime.event_bus import make_runtime_event
 from custodian.state.manager import TemporalStateManager
 
 
@@ -24,6 +25,22 @@ def _packet(observed_at, *, dns_metadata=None, tls_metadata=None) -> PacketObser
         tcp_flags=frozenset({"ACK"}),
         dns_metadata=dns_metadata,
         tls_metadata=tls_metadata,
+    )
+
+
+def _assert_feature_vector_is_kafka_contract_compatible(vector) -> None:
+    make_runtime_event(
+        event_type="feature_vector",
+        payload={
+            "vector_id": vector.window_id,
+            "family": vector.family.value,
+            "schema_version": vector.schema_version,
+            "entity_id": vector.entity_id,
+            "values": vector.values,
+            "availability": vector.availability,
+        },
+        run_id=1,
+        capture_id="capture-1",
     )
 
 
@@ -46,6 +63,7 @@ def test_behaviour_features_use_bounded_temporal_state(observed_at) -> None:
     capabilities = build_capability_profile(packet, update.snapshot)
 
     vector = BehaviourFeatureExtractor().extract(update.snapshot, snapshot, capabilities)
+    _assert_feature_vector_is_kafka_contract_compatible(vector)
 
     assert vector.values["connection_count"] == 1
     assert vector.values["packets_per_second"] == 3 / 60
@@ -65,6 +83,7 @@ def test_dns_features_keep_hidden_query_text_unavailable(observed_at) -> None:
     visible = CapabilityProfile(has_dns_query_name=True, has_dns_query_type=True)
 
     vector = DNSFeatureExtractor().extract(packet, snapshot, visible)
+    _assert_feature_vector_is_kafka_contract_compatible(vector)
     assert vector.values["domain_length"] == 15
     assert vector.values["digit_ratio"] > 0
 
@@ -148,6 +167,7 @@ def test_tls_features_do_not_require_decrypted_payload(observed_at) -> None:
         snapshot,
         CapabilityProfile(has_tls_metadata=True, has_tls_fingerprint=True),
     )
+    _assert_feature_vector_is_kafka_contract_compatible(vector)
     assert vector.values["tls_record_version"] == 771
     assert vector.values["tls_fingerprint_bucket"] is not None
     assert vector.values["byte_rate_a_to_b"] is None

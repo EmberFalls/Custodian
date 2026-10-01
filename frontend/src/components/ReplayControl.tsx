@@ -4,6 +4,14 @@ import { api } from "../runtime";
 import type { CaptureCandidate, RuntimeStatus } from "../types";
 import { StatusBadge } from "./Visuals";
 
+interface CaptureInterface {
+  interface_id: string;
+  name: string;
+  description: string;
+  available: boolean;
+  link_type: number | null;
+}
+
 export function ReplayControl({
   status,
   captures,
@@ -19,10 +27,38 @@ export function ReplayControl({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [anonymizeExport, setAnonymizeExport] = useState(true);
+  const [ingestMode, setIngestMode] = useState<"pcap" | "live">("pcap");
+  const [interfaces, setInterfaces] = useState<CaptureInterface[]>([]);
+  const [interfaceId, setInterfaceId] = useState("");
+  const [captureFilter, setCaptureFilter] = useState("");
+  const [backendStatus, setBackendStatus] = useState("not checked");
+  const [backendError, setBackendError] = useState("");
+  const [interfaceRefresh, setInterfaceRefresh] = useState(0);
 
   useEffect(() => {
     if (!capture && captures.length) setCapture(captures[0].display_name);
   }, [capture, captures]);
+
+  useEffect(() => {
+    if (ingestMode !== "live") return;
+    let active = true;
+    api<{ status: string; interfaces: CaptureInterface[]; reason: string | null }>(
+      "/api/v1/live/interfaces",
+    )
+      .then((result) => {
+        if (!active) return;
+        setInterfaces(result.interfaces);
+        setBackendStatus(result.status);
+        setBackendError(result.reason ?? "");
+      })
+      .catch((error) => {
+        if (!active) return;
+        setInterfaces([]);
+        setBackendStatus("unavailable");
+        setBackendError(error instanceof Error ? error.message : "Unable to list interfaces");
+      });
+    return () => { active = false; };
+  }, [ingestMode, interfaceRefresh]);
 
   const control = async (path: string, body?: object) => {
     setBusy(true);
@@ -85,7 +121,25 @@ export function ReplayControl({
       </div>
 
       <div className="replay-control__body">
-        {/* Row 1: Source & Mode Configuration */}
+        <div className="control-row" role="group" aria-label="Ingestion mode">
+          <button
+            className={`button ${ingestMode === "pcap" ? "button--primary" : ""}`}
+            onClick={() => setIngestMode("pcap")}
+            disabled={busy || Boolean(status?.replay_running)}
+          >
+            PCAP / Offline
+          </button>
+          <button
+            className={`button ${ingestMode === "live" ? "button--primary" : ""}`}
+            onClick={() => setIngestMode("live")}
+            disabled={busy || Boolean(status?.replay_running)}
+          >
+            Real-Time Capture
+          </button>
+        </div>
+
+        {ingestMode === "pcap" ? <>
+        {/* Row 1: PCAP source & replay mode */}
         <div className="replay-control__inputs">
           <label className="capture-input">
             <span className="input-label font-mono">APPROVED CAPTURE FILE</span>
@@ -138,9 +192,48 @@ export function ReplayControl({
             </label>
           ) : null}
         </div>
+        </> : <>
+          <div className="replay-control__inputs">
+            <label className="capture-input">
+              <span className="input-label font-mono">CAPTURE BACKEND</span>
+              <input value={`${backendStatus.toUpperCase()} · ${backendError}`} readOnly aria-label="Capture backend status" />
+            </label>
+            <label className="capture-input">
+              <span className="input-label font-mono">SELECT ONE INTERFACE</span>
+              <select
+                value={interfaceId}
+                onChange={(event) => setInterfaceId(event.target.value)}
+                disabled={busy || Boolean(status?.replay_running)}
+                aria-label="Network interface"
+              >
+                <option value="">Choose an interface explicitly</option>
+                {interfaces.map((item) => (
+                  <option key={item.interface_id} value={item.interface_id}>
+                    {item.name} · {item.link_type == null ? "link type checked at start" : `link ${item.link_type}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="capture-input">
+              <span className="input-label font-mono">BACKEND CAPTURE FILTER</span>
+              <input
+                value={captureFilter}
+                onChange={(event) => setCaptureFilter(event.target.value)}
+                placeholder="No capture filter"
+                disabled={busy || Boolean(status?.replay_running)}
+                aria-label="Capture filter"
+              />
+            </label>
+          </div>
+          <p className="control-message" role="note">
+            {status?.selected_interface
+              ? `Selected interface: ${status.selected_interface} · Active filter: ${status.capture_filter || "None (unfiltered)"}`
+              : "Capture is passive and starts only after you select one interface and press Start. No capture filter is applied by default."}
+          </p>
+        </>}
 
         {/* Replay Progress (when active) */}
-        {status?.progress != null ? (
+        {ingestMode === "pcap" && status?.progress != null ? (
           <div className="replay-progress">
             <progress value={status.progress} max={1} aria-label="Capture processing progress" />
             <span className="font-mono">
@@ -157,6 +250,7 @@ export function ReplayControl({
         {/* Row 2: Action Buttons & Exports */}
         <div className="replay-control__actions">
           <div className="control-row">
+            {ingestMode === "pcap" ? <>
             <button
               className="button button--primary"
               title={captureReady ? "Start passive replay" : "Validate this capture before starting"}
@@ -189,6 +283,37 @@ export function ReplayControl({
             >
               ⏹ Stop
             </button>
+            </> : <>
+              {status?.source_type === "LIVE_PASSIVE" && status.replay_running ? (
+                <button
+                  className="button"
+                  onClick={() => void control("/api/v1/live/stop")}
+                  disabled={busy}
+                >
+                  ⏹ Stop capture
+                </button>
+              ) : (
+                <button
+                  className="button button--primary"
+                  onClick={() => void control("/api/v1/live/start", {
+                    interface_id: interfaceId,
+                    capture_filter: captureFilter.trim() || null,
+                  })}
+                  disabled={busy || !interfaceId || backendStatus !== "ready" || Boolean(status?.replay_running)}
+                  title={!interfaceId ? "Select one interface explicitly" : "Start passive capture"}
+                >
+                  ▶ Start capture
+                </button>
+              )}
+              <button
+                className="button"
+                onClick={() => setInterfaceRefresh((value) => value + 1)}
+                disabled={busy}
+              >
+                ↻ Refresh interfaces
+              </button>
+            </>}
+            {ingestMode === "pcap" ? <>
             <button
               className="button font-mono"
               onClick={() => void seekBy(-0.1)}
@@ -210,6 +335,7 @@ export function ReplayControl({
             >
               Reset
             </button>
+            </> : null}
           </div>
 
           <div className="control-row export-row">
@@ -240,6 +366,7 @@ export function ReplayControl({
           </div>
           <p className="control-message" role="status">
             {status?.error ||
+              (ingestMode === "live" && backendError ? backendError : "") ||
               message ||
               "Each replay starts a fresh session. Processing throughput measures this laptop; it is separate from the capture's original traffic rate."}
           </p>

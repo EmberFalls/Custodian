@@ -77,7 +77,7 @@ The intended operator question is not merely “did a model return a high number
 - Confidence calibration and class-specific thresholds.
 - Evidence availability and missing-evidence representation.
 - Severity scoring, deduplication and alert lifecycle.
-- Local SQLite persistence and restart recovery.
+- Local PostgreSQL persistence and restart recovery.
 - Replay start, pause, resume, stop, reset and forward/backward seek.
 - JSON and CSV exports with provenance and spreadsheet-injection escaping.
 - Versioned FastAPI HTTP API and WebSocket event streams.
@@ -138,7 +138,7 @@ Calibration + operating threshold + evidence gate
         v
 Conservative fusion, severity and deduplication
         |
-        +--> SQLite persistence
+        +--> PostgreSQL persistence
         +--> event stream
         +--> metrics
         |
@@ -164,7 +164,7 @@ React/Vite local dashboard
 | Evidence | `src/custodian/evidence` | Evidence quality, capability requirements and acceptance decisions |
 | Fusion | `src/custodian/fusion` | Conservative combination of detector verdicts |
 | Alerts | `src/custodian/alerts` | Alert construction, severity and repetition deduplication |
-| Persistence | `src/custodian/storage` | Local SQLite storage, lifecycle and recovery |
+| Persistence | `src/custodian/storage` | Local PostgreSQL storage, lifecycle and recovery |
 | Runtime | `src/custodian/runtime` | Pipeline orchestration, replay, checkpoints and benchmarks |
 | Telemetry | `src/custodian/telemetry` | Throughput, packet/flow counts, latency, CPU and memory metrics |
 | API | `src/custodian/api` | Local FastAPI HTTP and WebSocket interface |
@@ -932,7 +932,7 @@ Alert records include source/destination, threat class, severity, calibrated con
 - Framework: FastAPI.
 - Bind address: `127.0.0.1`.
 - Default port: `8000`.
-- Persistence: local SQLite.
+- Persistence: local PostgreSQL.
 - API prefix: `/api/v1`.
 - Interactive documentation: `/docs` and `/redoc` while the backend runs.
 
@@ -955,7 +955,7 @@ The complete request/response contract is in `docs/api.md`.
 
 ### 13.3 Persistence
 
-SQLite stores bounded operational state including alerts, lifecycle changes, flow summaries, application events, capture/checkpoint information and restart recovery data. Queries are parameterised and retention is bounded.
+PostgreSQL stores operational state including alerts, lifecycle changes, flow summaries, application events, capture/checkpoint information and restart recovery data. Queries are parameterised and retention is bounded by age.
 
 ---
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any, TypeVar
+from urllib.parse import urlparse
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -12,6 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from custodian.core.enums import FeatureFamily, ReplayMode
 
 ConfigType = TypeVar("ConfigType", bound=BaseModel)
+
+LOOPBACK_REDIS_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 class SettingsModel(BaseModel):
@@ -144,9 +147,70 @@ class ModelsSettings(SettingsModel):
 
 class StorageSettings(SettingsModel):
     enabled: bool = True
-    database_path: Path
+    database_url: str = "postgresql://custodian@127.0.0.1:5432/custodian"
     retention_days: int = Field(default=30, gt=0)
-    max_database_bytes: int = Field(default=1_073_741_824, gt=0)
+
+    @model_validator(mode="after")
+    def validate_postgres_url(self) -> StorageSettings:
+        if not self.database_url.startswith(("postgresql://", "postgres://")):
+            raise ValueError("database_url must use PostgreSQL")
+        hostname = urlparse(self.database_url).hostname
+        if hostname not in {"127.0.0.1", "localhost", "::1"}:
+            raise ValueError("controlled pilot PostgreSQL host must be loopback")
+        return self
+
+
+class RedisSettings(SettingsModel):
+    """Optional, loopback-only short-lived live-state cache configuration."""
+
+    enabled: bool = False
+    url: str = "redis://127.0.0.1:6379/0"
+    namespace: str = Field(
+        default="custodian:pilot", min_length=1, pattern=r"^[A-Za-z0-9:_-]+$"
+    )
+    ttl_seconds: int = Field(default=900, gt=0, le=86_400)
+    max_history: int = Field(default=500, ge=1, le=5_000)
+    connect_timeout_seconds: float = Field(default=1.0, gt=0, le=30)
+    socket_timeout_seconds: float = Field(default=1.0, gt=0, le=30)
+    host_timeline: bool = False
+
+    @model_validator(mode="after")
+    def validate_loopback_endpoint(self) -> RedisSettings:
+        parsed = urlparse(self.url)
+        if parsed.scheme not in {"redis", "rediss"}:
+            raise ValueError("redis url must use the redis:// or rediss:// scheme")
+        if parsed.hostname is None:
+            raise ValueError("redis url must include a host")
+        if parsed.hostname not in LOOPBACK_REDIS_HOSTS:
+            raise ValueError(
+                "controlled pilot requires a loopback Redis host "
+                f"({', '.join(sorted(LOOPBACK_REDIS_HOSTS))}); "
+                f"refusing non-loopback host {parsed.hostname!r}"
+            )
+        return self
+
+
+class KafkaSettings(SettingsModel):
+    """Optional localhost-only metadata event transport."""
+
+    enabled: bool = False
+    bootstrap_servers: tuple[str, ...] = ("127.0.0.1:9092",)
+    topic_prefix: str = "custodian.v1"
+    consumer_group: str = "custodian-pilot"
+    max_event_bytes: int = Field(default=262144, gt=0, le=1_048_576)
+    retries: int = Field(default=3, ge=0, le=10)
+    retry_backoff_seconds: float = Field(default=0.1, ge=0, le=5)
+
+    @model_validator(mode="after")
+    def validate_local_brokers(self) -> KafkaSettings:
+        if not self.bootstrap_servers or any(
+            not (server.startswith("127.0.0.1:") or server.startswith("localhost:") or server.startswith("[::1]:"))
+            for server in self.bootstrap_servers
+        ):
+            raise ValueError("controlled pilot Kafka brokers must use loopback addresses")
+        if not self.topic_prefix.endswith(".v1"):
+            raise ValueError("Kafka topic_prefix must end with a version such as .v1")
+        return self
 
 
 class ConfigBundle(SettingsModel):
@@ -156,6 +220,8 @@ class ConfigBundle(SettingsModel):
     severity: SeveritySettings
     models: ModelsSettings
     storage: StorageSettings
+    redis: RedisSettings = Field(default_factory=RedisSettings)
+    kafka: KafkaSettings = Field(default_factory=KafkaSettings)
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -172,6 +238,67 @@ def _validate_file(path: Path, model: type[ConfigType]) -> ConfigType:
     return model.model_validate(_load_yaml(path))
 
 
+def _load_redis_settings(directory: Path) -> RedisSettings:
+    """Resolve Redis settings from explicit, local, or repository config plus env."""
+
+    override = os.environ.get("CUSTODIAN_REDIS_CONFIG")
+    if override:
+        path = Path(override)
+        if not path.is_absolute():
+            path = directory / path
+    elif (directory / "redis.local.yaml").is_file():
+        path = directory / "redis.local.yaml"
+    else:
+        path = directory / "redis.yaml"
+    raw: dict[str, Any] = _load_yaml(path) if path.is_file() else {}
+    url_override = os.environ.get("CUSTODIAN_REDIS_URL")
+    if url_override:
+        raw = {**raw, "url": url_override}
+    return RedisSettings.model_validate(raw)
+
+
+def _load_storage_settings(directory: Path) -> StorageSettings:
+    override = os.environ.get("CUSTODIAN_STORAGE_CONFIG")
+    if override:
+        path = Path(override)
+        if not path.is_absolute():
+            path = directory / path
+    elif (directory / "storage.local.yaml").is_file():
+        path = directory / "storage.local.yaml"
+    else:
+        path = directory / "storage.yaml"
+    raw = _load_yaml(path)
+    if os.environ.get("CUSTODIAN_DATABASE_URL"):
+        raw = {**raw, "database_url": os.environ["CUSTODIAN_DATABASE_URL"]}
+    return StorageSettings.model_validate(raw)
+
+
+def _load_kafka_settings(directory: Path) -> KafkaSettings:
+    override = os.environ.get("CUSTODIAN_KAFKA_CONFIG")
+    if override:
+        path = Path(override)
+        if not path.is_absolute():
+            path = directory / path
+    elif (directory / "kafka.local.yaml").is_file():
+        path = directory / "kafka.local.yaml"
+    else:
+        path = directory / "kafka.yaml"
+    raw = _load_yaml(path) if path.is_file() else {}
+    env = {
+        "CUSTODIAN_KAFKA_ENABLED": ("enabled", lambda value: value.lower() in {"1", "true", "yes"}),
+        "CUSTODIAN_KAFKA_BOOTSTRAP_SERVERS": ("bootstrap_servers", lambda value: tuple(value.split(","))),
+        "CUSTODIAN_KAFKA_TOPIC_PREFIX": ("topic_prefix", str),
+        "CUSTODIAN_KAFKA_CONSUMER_GROUP": ("consumer_group", str),
+        "CUSTODIAN_KAFKA_MAX_EVENT_BYTES": ("max_event_bytes", int),
+        "CUSTODIAN_KAFKA_RETRIES": ("retries", int),
+        "CUSTODIAN_KAFKA_RETRY_BACKOFF_SECONDS": ("retry_backoff_seconds", float),
+    }
+    for variable, (key, convert) in env.items():
+        if variable in os.environ:
+            raw[key] = convert(os.environ[variable])
+    return KafkaSettings.model_validate(raw)
+
+
 def load_config_bundle(config_dir: str | Path) -> ConfigBundle:
     """Load and validate all prototype configuration files from one directory."""
 
@@ -186,7 +313,9 @@ def load_config_bundle(config_dir: str | Path) -> ConfigBundle:
         evidence=_validate_file(directory / "evidence.yaml", EvidenceSettings),
         severity=_validate_file(directory / "severity.yaml", SeveritySettings),
         models=_validate_file(models_path, ModelsSettings),
-        storage=_validate_file(directory / "storage.yaml", StorageSettings),
+        storage=_load_storage_settings(directory),
+        redis=_load_redis_settings(directory),
+        kafka=_load_kafka_settings(directory),
     )
     root = directory.resolve().parent
 
@@ -215,8 +344,5 @@ def load_config_bundle(config_dir: str | Path) -> ConfigBundle:
                 update={"capture_root": resolved(bundle.replay.capture_root)}
             ),
             "models": bundle.models.model_copy(update={"models": entries}),
-            "storage": bundle.storage.model_copy(
-                update={"database_path": resolved(bundle.storage.database_path)}
-            ),
         }
     )

@@ -1,0 +1,18 @@
+# Controlled-pilot Redis cache example.
+#
+# Copy this file to configs/redis.local.yaml (git-ignored) to enable the optional
+# live-state cache for a local pilot:
+#
+#   cp configs/redis.pilot.example.yaml configs/redis.local.yaml
+#   docker compose -f docker-compose.pilot.yml up -d redis
+#
+# Redis must remain bound to loopback. Non-loopback endpoints are rejected by
+# configuration validation. Set CUSTODIAN_REDIS_URL to override only the URL.
+enabled: true
+url: redis://127.0.0.1:6379/0
+namespace: custodian:pilot
+ttl_seconds: 900
+max_history: 500
+connect_timeout_seconds: 1.0
+socket_timeout_seconds: 1.0
+host_timeline: false

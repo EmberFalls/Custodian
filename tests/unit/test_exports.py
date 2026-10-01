@@ -4,7 +4,6 @@ import csv
 import json
 
 from custodian.exports.service import ExportService, escape_spreadsheet_value
-from custodian.storage import SQLiteRepository
 
 
 def test_spreadsheet_formula_prefixes_are_escaped() -> None:
@@ -13,8 +12,11 @@ def test_spreadsheet_formula_prefixes_are_escaped() -> None:
 
 
 def test_empty_exports_are_bounded_to_output_root(tmp_path) -> None:
-    repository = SQLiteRepository(tmp_path / "runtime.sqlite3")
-    repository.initialize()
+    class EmptyRepository:
+        def export_alerts(self):
+            return []
+
+    repository = EmptyRepository()
     output = tmp_path / "reports"
     service = ExportService(repository, output)
 

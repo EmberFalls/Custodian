@@ -19,7 +19,13 @@ from custodian.core.enums import (
     ReplayMode,
     TransportProtocol,
 )
-from custodian.core.schemas import CapabilityProfile, FeatureVector, FlowRecord, ObservationFrame
+from custodian.core.schemas import (
+    CapabilityProfile,
+    FeatureVector,
+    FlowRecord,
+    ObservationFrame,
+    PacketObservation,
+)
 from custodian.detection.behaviour import BehaviourDetector
 from custodian.detection.dns import DNSDetector
 from custodian.detection.tls_quic import TLSQUICDetector
@@ -87,6 +93,7 @@ class CustodianEngine:
         self._watermark: datetime | None = None
         self.mode = config.replay.mode
         self.capture_id: str | None = None
+        self.pipeline_events: list[dict] = []
 
     def _package(self, family: str, entry=None, *, detector_id: str | None = None):
         entry = entry or self.config.models.models[family]
@@ -177,7 +184,7 @@ class CustodianEngine:
                     "model_version": package.model_version if package else None,
                     "schema_version": package.feature_schema["schema_version"]
                     if package
-                        else f"{family}.v1",
+                    else f"{family}.v1",
                     "classes": list(package.classes) if package else [],
                     "artifact_trusted": entry.trusted,
                     "required_evidence": list(
@@ -198,6 +205,25 @@ class CustodianEngine:
         if packet_count == self._last_snapshot_counts.get(flow.flow_id):
             return []
         self._last_snapshot_counts[flow.flow_id] = packet_count
+        self.pipeline_events.append(
+            {
+                "event_type": "flow_update",
+                "payload": {
+                    "flow_id": flow.flow_id,
+                    "start_time": flow.start_time.isoformat(),
+                    "last_seen": flow.last_seen.isoformat(),
+                    # Kafka's versioned metadata contract uses lowercase protocol names.
+                    # Normalize only at the event boundary; keep engine enums unchanged.
+                    "protocol": flow.protocol.value.lower(),
+                    "source_ip": str(flow.endpoint_a.ip),
+                    "destination_ip": str(flow.endpoint_b.ip),
+                    "packets": flow.packets_a_to_b + flow.packets_b_to_a,
+                    "bytes": flow.bytes_a_to_b + flow.bytes_b_to_a,
+                    "observed_payload_length": flow.payload_bytes_a_to_b
+                    + flow.payload_bytes_b_to_a,
+                },
+            }
+        )
         started = perf_counter()
         source = flow.initiator or flow.endpoint_a
         destination = flow.endpoint_b if source == flow.endpoint_a else flow.endpoint_a
@@ -251,6 +277,19 @@ class CustodianEngine:
         self.metrics.record_latency("features", (perf_counter() - started) * 1000)
         emitted = []
         for detector_id, vector in vectors:
+            self.pipeline_events.append(
+                {
+                    "event_type": "feature_vector",
+                    "payload": {
+                        "vector_id": vector.window_id,
+                        "family": vector.family.value,
+                        "schema_version": vector.schema_version,
+                        "entity_id": vector.entity_id,
+                        "values": vector.values,
+                        "availability": vector.availability,
+                    },
+                }
+            )
             if not self.detectors[detector_id].available:
                 continue
             if self._detector_families[detector_id] == "behaviour" and flow.protocol not in {
@@ -334,6 +373,27 @@ class CustodianEngine:
                     },
                 }
             )
+            result_id = f"{verdict.detector_id}:{job.vector.window_id}"
+            self.pipeline_events.append(
+                {
+                    "event_type": "detector_verdict",
+                    "payload": {
+                        "result_id": result_id,
+                        "detector_id": verdict.detector_id,
+                        "threat_class": verdict.threat_class.value,
+                        "raw_score": verdict.raw_score,
+                        "calibrated_confidence": verdict.calibrated_confidence,
+                        "model_version": verdict.model_version,
+                        "feature_schema_version": verdict.feature_schema_version,
+                        "distribution_support": verdict.evidence.get(
+                            "distribution_support", "not_evaluated"
+                        ),
+                        "out_of_range_feature_count": len(
+                            verdict.evidence.get("out_of_range_features", ())
+                        ),
+                    },
+                }
+            )
             started = perf_counter()
             threshold = detector.package.thresholds.get(verdict.threat_class.value)
             gate = self.evidence_gate.evaluate(verdict, job.capabilities, threshold)
@@ -393,6 +453,30 @@ class CustodianEngine:
                 )
                 self.alert_revision += 1
                 emitted.append(alert)
+                self.pipeline_events.append(
+                    {
+                        "event_type": "alert",
+                        "payload": {
+                            "alert_id": alert.alert_id,
+                            "capture_id": alert.capture_id or self.capture_id or "unknown",
+                            "timestamp": alert.timestamp.isoformat(),
+                            "threat_class": alert.threat_class.value,
+                            "severity": alert.severity.value,
+                            "decision": alert.decision.value,
+                            "detector_id": alert.detector_id,
+                            "model_version": alert.model_version,
+                            "calibrated_confidence": alert.calibrated_confidence,
+                            "status": alert.status.value,
+                            "occurrence_count": alert.occurrence_count,
+                            "flow_id": alert.flow_id,
+                            "window_id": alert.window_id,
+                            "source_ip": str(alert.source.ip) if alert.source else None,
+                            "destination_ip": str(alert.destination.ip)
+                            if alert.destination
+                            else None,
+                        },
+                    }
+                )
             self.metrics.record_latency("alert", (perf_counter() - started) * 1000)
             self.metrics.record_latency("total_pipeline", (perf_counter() - job.queued_at) * 1000)
         return emitted
@@ -421,6 +505,17 @@ class CustodianEngine:
             self.metrics.skipped_frames += 1
             self.metrics.record_parse_failure(parse_status)
             return self.flush_due()
+        return self._process_observation(packet, sampled=sampled)
+
+    def process_observation(self, packet: PacketObservation, wire_length: int) -> list:
+        """Process an already validated metadata-only observation through shared stages."""
+        if self.metrics._started is None:
+            self.metrics.begin()
+        sampled = self.mode is not ReplayMode.BENCHMARK or self.metrics.packet_count % 32 == 0
+        self.metrics.record_packet(wire_length, packet.timestamp.timestamp())
+        return self._process_observation(packet, sampled=sampled)
+
+    def _process_observation(self, packet: PacketObservation, *, sampled: bool) -> list:
         if self._watermark is not None and packet.timestamp < self._watermark:
             self.metrics.out_of_order_packets += 1
             return self.flush_due()
@@ -472,7 +567,7 @@ class CustodianEngine:
         self.metrics.finish()
         return emitted
 
-    def run_controller(self, controller: ReplayController):
+    def run_controller(self, controller: ReplayController, on_stage_events=None):
         self.mode = controller.mode
         self.metrics.telemetry_interval = (
             self.config.replay.benchmark_telemetry_interval_ms
@@ -490,8 +585,12 @@ class CustodianEngine:
                 yield from idle_emitted
                 idle_emitted.clear()
                 yield from self.process_frame(frame.timestamp, frame.data, frame.datalink)
+                if on_stage_events is not None:
+                    on_stage_events()
             yield from idle_emitted
             yield from self.finish()
+            if on_stage_events is not None:
+                on_stage_events()
         except Exception:
             self.metrics.finish()
             raise

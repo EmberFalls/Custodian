@@ -481,9 +481,9 @@ function CaptureGateCard() {
 }
 
 /* ──────────────────────────────────────────────
-   Card 5: Local-First SQLite Forensics
+   Card 5: Local-First PostgreSQL Forensics
    ─────────────────────────────────────────────── */
-function SqliteForensicsCard() {
+function PostgresForensicsCard() {
   const [cursor, setCursor] = useState(0);
 
   const rows = [
@@ -528,10 +528,10 @@ function SqliteForensicsCard() {
             color: "#ffffff",
           }}
         >
-          Local-First SQLite Forensics
+          Local-First PostgreSQL Forensics
         </h3>
         <p style={{ margin: "3px 0 0", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: "0.8rem", color: "#a1a1aa" }}>
-          All alerts, flows and captures persist to an on-device SQLite store. No cloud upload, no outbound telemetry.
+          Alerts, flows and capture records persist in the local PostgreSQL database. No cloud upload or outbound telemetry.
         </p>
       </div>
 
@@ -715,7 +715,7 @@ export function BentoFeatures() {
           <DualConfidenceCard />
           <DnsTlsCard />
           <CaptureGateCard />
-          <SqliteForensicsCard />
+          <PostgresForensicsCard />
         </div>
       </div>
     </section>

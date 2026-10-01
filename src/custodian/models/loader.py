@@ -3,20 +3,85 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import math
+import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from threading import RLock
 from time import perf_counter
 
 import joblib
 import numpy as np
+from sklearn.impute import SimpleImputer
 
 from custodian.core.enums import ThreatClass
 from custodian.core.schemas import FeatureVector
 from custodian.features.behaviour_flow import FLOW_DEFINITION_ID, FLOW_MODEL_FEATURES
 from custodian.models.calibrator import MulticlassSigmoidCalibrator
 from custodian.models.compatibility import validate_feature_compatibility
+
+_JOBLIB_LOAD_LOCK = RLock()
+
+
+@contextmanager
+def _legacy_loss_module_alias():
+    """Resolve old Colab pickle references to sklearn's current private module.
+
+    Some exported sklearn 1.6/1.7 artifacts refer to ``_loss`` as a top-level
+    module even though the implementation lives at
+    ``sklearn._loss._loss``. Keep the temporary alias scoped to artifact
+    deserialization so it does not alter imports for the rest of the process.
+    """
+
+    with _JOBLIB_LOAD_LOCK:
+        previous = sys.modules.get("_loss")
+        injected = previous is None
+        if injected:
+            sys.modules["_loss"] = importlib.import_module("sklearn._loss._loss")
+        try:
+            yield
+        finally:
+            if injected:
+                sys.modules.pop("_loss", None)
+
+
+def _joblib_load_compatible(path: str | Path):
+    with _legacy_loss_module_alias():
+        loaded = joblib.load(path)
+    _restore_legacy_sklearn_state(loaded)
+    return loaded
+
+
+def _restore_legacy_sklearn_state(value, seen: set[int] | None = None) -> None:
+    """Fill state introduced after older serialized sklearn estimators."""
+
+    if seen is None:
+        seen = set()
+    identity = id(value)
+    if identity in seen:
+        return
+    seen.add(identity)
+
+    if isinstance(value, SimpleImputer) and hasattr(value, "statistics_"):
+        # sklearn 1.9 reads this field in transform(); 1.6/1.7 pickles do not
+        # contain it. Use the fitted statistics dtype, matching old estimator
+        # behavior while preserving the numeric precision stored in the model.
+        if not hasattr(value, "_fill_dtype"):
+            value._fill_dtype = np.asarray(value.statistics_).dtype
+
+    if isinstance(value, dict):
+        children = value.values()
+    elif isinstance(value, (list, tuple, set)):
+        children = value
+    elif type(value).__module__.startswith("sklearn.") and hasattr(value, "__dict__"):
+        children = vars(value).values()
+    else:
+        return
+    for child in children:
+        _restore_legacy_sklearn_state(child, seen)
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,7 +235,7 @@ def load_model_package(path: str | Path) -> LoadedModelPackage:
         estimator.load_model(directory / "model.json")
         # Small runtime batches should not start a full laptop-sized thread pool.
         estimator.set_params(n_jobs=1)
-        calibrator = joblib.load(directory / "calibrator.joblib")
+        calibrator = _joblib_load_compatible(directory / "calibrator.joblib")
         if not isinstance(calibrator, MulticlassSigmoidCalibrator) or len(calibrator.models) != len(
             classes
         ):
@@ -191,8 +256,8 @@ def load_model_package(path: str | Path) -> LoadedModelPackage:
             },
         )
         classes = tuple(_read_json(directory / "classes.json").get("classes", []))
-        estimator = joblib.load(directory / "model.joblib")
-        calibrator = joblib.load(directory / "calibrator.joblib")
+        estimator = _joblib_load_compatible(directory / "model.joblib")
+        calibrator = _joblib_load_compatible(directory / "calibrator.joblib")
         if (
             tuple(map(str, estimator.classes_)) != classes
             or tuple(map(str, calibrator.classes_)) != classes

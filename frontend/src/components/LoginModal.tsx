@@ -222,7 +222,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess }) => {
           >
             {[
               "Argon2id Salted",
-              "Local SQLite Store",
+              "Local PostgreSQL Store",
               "Zero Cloud Telemetry",
               "Air-Gapped Capable",
             ].map((badge) => (

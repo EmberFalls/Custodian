@@ -41,6 +41,7 @@ Desktop.ini
 .env
 .env.*
 !.env.example
+!.env.pilot.example
 configs/*.local.yaml
 *.log
 *.db

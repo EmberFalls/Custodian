@@ -303,7 +303,7 @@ Closing statement:
 
 ### Is data being uploaded?
 
-No. Runtime captures, inference, alerts, metrics, and SQLite records remain local. The supported servers bind to `127.0.0.1`.
+No. Runtime captures, inference, alerts, metrics, and PostgreSQL records remain local. The supported services bind to `127.0.0.1`.
 
 ### Does replay send captured packets onto the network?
 

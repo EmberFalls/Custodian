@@ -2,12 +2,18 @@ import hashlib
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
+from sklearn.impute import SimpleImputer
 
 from custodian.core.enums import FeatureFamily
 from custodian.core.schemas import FeatureVector
 from custodian.models.compatibility import validate_feature_compatibility
-from custodian.models.loader import load_model_package
+from custodian.models.loader import (
+    _legacy_loss_module_alias,
+    _restore_legacy_sklearn_state,
+    load_model_package,
+)
 
 
 def _write_json(path: Path, value: object) -> None:
@@ -72,3 +78,26 @@ def test_generic_schema_can_declare_runtime_feature_superset() -> None:
                 "allow_runtime_feature_superset": True,
             },
         )
+
+
+def test_legacy_loss_module_alias_is_scoped() -> None:
+    import sys
+
+    original = sys.modules.get("_loss")
+    with _legacy_loss_module_alias():
+        assert sys.modules["_loss"].__name__ == "sklearn._loss._loss"
+    assert sys.modules.get("_loss") is original
+
+
+def test_legacy_simple_imputer_state_can_run_on_sklearn_19() -> None:
+    imputer = SimpleImputer(strategy="median", keep_empty_features=True).fit(
+        np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
+    )
+    del imputer._fill_dtype
+
+    _restore_legacy_sklearn_state(imputer)
+
+    assert imputer._fill_dtype == imputer.statistics_.dtype
+    assert imputer.transform(np.array([[np.nan, 5.0]], dtype=np.float32)).tolist() == [
+        [2.0, 5.0]
+    ]

@@ -1,0 +1,4 @@
+# Copy to storage.local.yaml (git-ignored) and replace the password locally.
+enabled: true
+database_url: postgresql://custodian:your-postgres-password@127.0.0.1:5432/custodian
+retention_days: 30

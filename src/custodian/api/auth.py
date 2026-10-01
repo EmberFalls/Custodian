@@ -16,7 +16,7 @@ from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 
-from custodian.storage.sqlite import SQLiteRepository
+from custodian.storage.postgres import PostgresRepository
 
 # Key settings
 JWT_SECRET = os.getenv(
@@ -113,7 +113,7 @@ DEMO_USERS = [
 ]
 
 
-def seed_demo_users_if_needed(repo: SQLiteRepository) -> None:
+def seed_demo_users_if_needed(repo: PostgresRepository) -> None:
     """Seed initial demo accounts for presentation if no users exist."""
     existing = repo.list_users()
     if not existing:
@@ -128,7 +128,7 @@ def seed_demo_users_if_needed(repo: SQLiteRepository) -> None:
             )
 
 
-def get_current_user_from_raw_token(token: str, repo: SQLiteRepository) -> dict:
+def get_current_user_from_raw_token(token: str, repo: PostgresRepository) -> dict:
     payload = decode_access_token(token)
     user_id = payload.get("sub")
     if not user_id:
